@@ -1,4 +1,6 @@
-node_modules/
+target/
 .env
 .env*
-dist/
+application-local.properties
+*.log
+.DS_Store
