@@ -1,14 +1,9 @@
 FROM node:18
-# Create app directory
 WORKDIR /usr/src/app
-# Install app dependencies
 COPY package*.json ./
 RUN npm install
-# Bundle app source
 COPY . .
-RUN chown -R node:node /usr/src/app
-USER node
-# Expose the port the app runs on
+RUN rm -f next-env.d.ts && \
+    chmod -R 777 /usr/src/app
 EXPOSE 3000
-# Start the app
 CMD [ "npm", "run", "dev" ]
