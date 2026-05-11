@@ -6,7 +6,9 @@ COPY package*.json ./
 RUN npm install
 # Bundle app source
 COPY . .
+RUN chown -R node:node /usr/src/app
+USER node
 # Expose the port the app runs on
 EXPOSE 3000
 # Start the app
-CMD [ "npm", "run", "dev", "--", "-H", "0.0.0.0" ]
+CMD [ "npm", "run", "dev" ]
