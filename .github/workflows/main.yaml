@@ -6,7 +6,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  NEXT_PUBLIC_API_URL: "https://backend-itip-en-01.apps.okd.ucll.cloud"  # update when backend is deployed
+  NEXT_PUBLIC_API_URL: "https://team-01-en-backend-itip-en-01.apps.okd.ucll.cloud"  # update when backend is deployed
 
 jobs:
   # -------- Frontend --------
