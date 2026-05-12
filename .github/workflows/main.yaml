@@ -6,7 +6,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  NEXT_PUBLIC_API_URL: "https://team-01-en-backend-itip-en-01.apps.okd.ucll.cloud"  # update when backend is deployed
+  NEXT_PUBLIC_API_URL: "https://team-01-en-backend-itip-en-01.apps.okd.ucll.cloud"  #backend is deployed
 
 jobs:
   # -------- Frontend --------
@@ -18,6 +18,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Run frontend tests
+        run: |
+          cd frontend
+          npm install
+          npm test -- --watchAll=false --passWithNoTests
 
       - name: Log in to registry
         uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
@@ -51,6 +57,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Run backend tests
+        run: cd backend && mvn test
 
       - name: Log in to registry
         uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
