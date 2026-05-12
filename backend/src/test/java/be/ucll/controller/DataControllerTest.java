@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
@@ -17,7 +18,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest({DataController.class, StatusController.class})
+@WebMvcTest({ DataController.class, StatusController.class})
 public class DataControllerTest {
 
     @Autowired
@@ -26,6 +27,7 @@ public class DataControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @MockitoBean
     private SensorService sensorService;
 
     // -------- POST /api/data --------
@@ -43,8 +45,8 @@ public class DataControllerTest {
 
         // Act + Assert
         mockMvc.perform(post("/api/data")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(input)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(input)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.deviceId").value("esp32-team1"))
                 .andExpect(jsonPath("$.temperature").value(22.4))
@@ -54,8 +56,8 @@ public class DataControllerTest {
     @Test
     void postData_missingBody_returns400() throws Exception {
         mockMvc.perform(post("/api/data")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
                 .andExpect(status().isOk()); // empty body is accepted, fields are null
     }
 
@@ -67,8 +69,8 @@ public class DataControllerTest {
         when(sensorService.save(any(SensorReading.class))).thenReturn(saved);
 
         mockMvc.perform(post("/api/data")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(input)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(input)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.temperature").value(99.9))
                 .andExpect(jsonPath("$.isMoving").value(true));
