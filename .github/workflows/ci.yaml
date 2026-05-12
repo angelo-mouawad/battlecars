@@ -1,0 +1,29 @@
+name: Run tests
+
+on:
+  push:
+    branches: ['main', 'prod']
+
+jobs:
+  # -------- Frontend --------
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Run frontend tests
+        run: |
+          cd frontend
+          npm install
+          npm run test --if-present -- --watchAll=false --passWithNoTests
+
+  # -------- Backend --------
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Run backend tests
+        run: cd backend && mvn test
