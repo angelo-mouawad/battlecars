@@ -3,7 +3,6 @@ import Field from "@/components/Field";
 import Scoreboard from "@/components/Scoreboard";
 
 export default function Home() {
-  const { sendCommand } = useWebSocket();
 
   return (
     <>
