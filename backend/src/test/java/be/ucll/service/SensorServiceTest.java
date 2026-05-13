@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -126,5 +127,33 @@ public class SensorServiceTest {
         sensorService.getLatest();
 
         verify(repository, times(1)).findTopByOrderByTimestampDesc();
+    }
+
+    @Test
+    void saveFromJson_validJson_savesCorrectly() throws Exception {
+        String json = "{\"deviceId\":\"esp32-team1\",\"temperature\":22.4,\"isMoving\":true}";
+
+        SensorReading mockReading = new SensorReading("esp32-team1", 22.4, true);
+        when(repository.save(any(SensorReading.class))).thenReturn(mockReading);
+
+        SensorReading result = sensorService.saveFromJson(json);
+
+        assertEquals("esp32-team1", result.getDeviceId());
+        assertEquals(22.4, result.getTemperature());
+        assertTrue(result.getIsMoving());
+    }
+
+    @Test
+    void saveFromJson_missingFields_doesNotCrash() throws Exception {
+        String json = "{\"deviceId\":\"esp32-team1\"}";
+
+        SensorReading mockReading = new SensorReading("esp32-team1", null, null);
+        when(repository.save(any(SensorReading.class))).thenReturn(mockReading);
+
+        SensorReading result = sensorService.saveFromJson(json);
+
+        assertEquals("esp32-team1", result.getDeviceId());
+        assertNull(result.getTemperature());
+        assertNull(result.getIsMoving());
     }
 }
