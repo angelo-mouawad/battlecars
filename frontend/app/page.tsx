@@ -1,3 +1,5 @@
+'use client';
+
 import ControlsIndicator from "@/components/ControlsIndicator";
 import Field from "@/components/Field";
 import Scoreboard from "@/components/Scoreboard";

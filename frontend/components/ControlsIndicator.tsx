@@ -1,5 +1,6 @@
 ﻿'use client';
 import React, { useEffect, useState } from 'react';
+import { useWebSocket } from '@/app/hooks/useWebSocket';
 
 interface ControlsIndicatorProps {
   player?: 1 | 2;
@@ -12,18 +13,9 @@ const directionMap: Record<string, string> = {
   'D': 'RIGHT', '\u2192': 'RIGHT',
 };
 
-async function sendKey(player: 1 | 2, label: string) {
-  const direction = directionMap[label];
-  if (!direction) return;
-  await fetch(`${process.env.NEXT_PUBLIC_API_URL}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(player + ':' + direction),
-  });
-}
-
 const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({ player = 1 }) => {
   const isPlayer2 = player === 2;
+  const { sendCommand } = useWebSocket();
 
   const keys = isPlayer2
     ? { up: '\u2191', left: '\u2190', down: '\u2193', right: '\u2192' }
@@ -34,6 +26,12 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({ player = 1 }) => 
     : { w: 'W', a: 'A', s: 'S', d: 'D' };
 
   const [active, setActive] = useState<string | null>(null);
+
+  function sendKey(player: 1 | 2, label: string) {
+    const direction = directionMap[label];
+    if (!direction) return;
+    sendCommand(`${player}:${direction}`);
+  }
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
