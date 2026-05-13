@@ -2,7 +2,7 @@ name: Run tests
 
 on:
   push:
-    branches: ['main', 'prod']
+    branches: ["main", "prod"]
 
 jobs:
   # -------- Frontend --------
@@ -27,3 +27,16 @@ jobs:
 
       - name: Run backend tests
         run: cd backend && mvn test
+
+  # -------- SAST Security Scan --------
+  sast-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Semgrep OSS
+        run: pip install semgrep
+
+      - name: Run Semgrep Scan
+        run: semgrep scan --config="p/default" --config="p/java" --config="p/nextjs" --severity ERROR --error
