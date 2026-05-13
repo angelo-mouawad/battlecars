@@ -2,7 +2,7 @@ name: Run tests
 
 on:
   push:
-    branches: ["main", "prod"]
+    branches: ["main", "prod", "sec"]
 
 jobs:
   # -------- Frontend --------
@@ -40,3 +40,4 @@ jobs:
 
       - name: Run Semgrep Scan
         run: semgrep scan --config="p/default" --config="p/java" --config="p/nextjs" --severity ERROR --error
+
