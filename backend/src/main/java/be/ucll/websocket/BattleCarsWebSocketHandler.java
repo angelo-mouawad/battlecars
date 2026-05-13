@@ -50,7 +50,7 @@ public class BattleCarsWebSocketHandler extends TextWebSocketHandler {
 
             // Forward live data to all connected browsers
             for (WebSocketSession browser : new ArrayList<>(browserSessions)) {
-                if (browser.isOpen()) {
+                if (browser != null && browser.isOpen()) {
                     browser.sendMessage(new TextMessage(payload));
                 }
             }
@@ -70,6 +70,7 @@ public class BattleCarsWebSocketHandler extends TextWebSocketHandler {
             System.out.println("ESP32 disconnected");
         } else {
             browserSessions.remove(session);
+            browserSessions.removeIf(s -> s == null || !s.isOpen());
             System.out.println("Browser disconnected: " + session.getId());
         }
     }
