@@ -43,4 +43,5 @@ COPY --from=builder /app/.next/static ./.next/static
 EXPOSE 3000
 
 # Run the compiled server 
+USER 1001
 CMD ["node", "server.js"]
