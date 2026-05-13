@@ -22,4 +22,5 @@ COPY --from=build /app/target/*.jar app.jar
 
 EXPOSE 8080
 
-USER non-root CMD ["java", "-jar", "app.jar"]
+USER 1001
+CMD ["java", "-jar", "app.jar"]

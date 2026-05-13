@@ -17,6 +17,9 @@ COPY . .
 ARG NEXT_PUBLIC_API_URL="http://localhost:4000"
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
+ARG NEXT_PUBLIC_WS_URL="ws://localhost:8080/ws"
+ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
+
 RUN npm run build
 
 # -------- Stage 3: Production runtime --------
@@ -40,4 +43,5 @@ COPY --from=builder /app/.next/static ./.next/static
 EXPOSE 3000
 
 # Run the compiled server 
-USER non-root CMD ["node", "server.js"]
+USER 1001
+CMD ["node", "server.js"]
