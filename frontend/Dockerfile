@@ -39,5 +39,5 @@ COPY --from=builder /app/.next/static ./.next/static
 
 EXPOSE 3000
 
-# Run the compiled server — NOT npm run dev
-CMD ["node", "server.js"]
+# Run the compiled server 
+USER non-root CMD ["node", "server.js"]
