@@ -36,7 +36,16 @@ public class SensorService {
     public SensorReading saveFromJson(String json) throws Exception {
         JsonNode node = objectMapper.readTree(json);
 
-        String deviceId = node.has("deviceId") ? node.get("deviceId").asText() : "unknown";
+        // Support both deviceId and carId
+        String deviceId;
+        if (node.has("deviceId")) {
+            deviceId = node.get("deviceId").asText();
+        } else if (node.has("carId")) {
+            deviceId = "car-" + node.get("carId").asInt();
+        } else {
+            deviceId = "unknown";
+        }
+
         Double temperature = node.has("temperature") ? node.get("temperature").asDouble() : null;
         Boolean isMoving = node.has("isMoving") ? node.get("isMoving").asBoolean() : null;
 
