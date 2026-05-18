@@ -4,7 +4,7 @@ WORKDIR /app
 
 FROM base AS deps
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci 
 
 # -------- Stage 2: Build the app --------
 FROM base AS builder
