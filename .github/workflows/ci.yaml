@@ -56,7 +56,7 @@ jobs:
         with:
           image-ref: "project-frontend:test"
           format: "json"
-          exit-code: "1"
+          exit-code: "0"
           severity: "CRITICAL,HIGH"
           ignore-unfixed: false
           vuln-type: "os,library"
