@@ -1,10 +1,11 @@
 # -------- Stage 1: Install dependencies --------
-FROM node:20-slim AS base
+FROM node:20-alpine AS base
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 FROM base AS deps
 COPY package*.json ./
-RUN npm ci 
+RUN npm ci --omit=dev
 
 # -------- Stage 2: Build the app --------
 FROM base AS builder
