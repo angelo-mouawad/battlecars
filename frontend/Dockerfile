@@ -14,7 +14,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # The backend API URL — injected at build time
-ARG NEXT_PUBLIC_API_URL="http://localhost:4000"
+ARG NEXT_PUBLIC_API_URL="http://localhost:8080"
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
 ARG NEXT_PUBLIC_WS_URL="ws://localhost:8080/ws"
