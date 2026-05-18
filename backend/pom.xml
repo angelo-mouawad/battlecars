@@ -19,6 +19,7 @@
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
+        <postgresql.version>42.7.11</postgresql.version>
     </properties>
 
     <dependencies>
