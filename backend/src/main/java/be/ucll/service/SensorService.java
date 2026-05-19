@@ -58,22 +58,28 @@ public class SensorService {
     }
 
     // Called by WebSocket handler when ESP32 hub sends sensor data as JSON string.
-    // carId and event are extracted as fixed columns for easy querying.
-    // All remaining fields are stored as jsonb — new ESP32 fields work automatically.
+    // carId, event, deviceId, isMoving, and temperature are extracted as fixed columns for easy querying.
+    // All remaining fields are stored as jsonb — new ESP32 fields flow in automatically.
     public SensorReading saveFromJson(String json) throws Exception {
         JsonNode node = objectMapper.readTree(json);
 
         Integer carId = node.has("carId") ? node.get("carId").asInt() : null;
         String event = node.has("event") ? node.get("event").asText() : "unknown";
+        Integer deviceId = node.has("deviceId") ? node.get("deviceId").asInt() : null;
+        Boolean isMoving = node.has("isMoving") ? node.get("isMoving").asBoolean() : null;
+        Integer temperature = node.has("temperature") ? node.get("temperature").asInt() : null;
 
-        // Strip carId and event — stored as dedicated columns
+        // Strip fixed columns — stored as dedicated columns, not duplicated in jsonb
         ObjectNode dataNode = ((ObjectNode) node).deepCopy();
         dataNode.remove("carId");
         dataNode.remove("event");
+        dataNode.remove("deviceId");
+        dataNode.remove("isMoving");
+        dataNode.remove("temperature");
 
         String data = objectMapper.writeValueAsString(dataNode);
 
-        SensorReading reading = new SensorReading(carId, event, data);
+        SensorReading reading = new SensorReading(carId, event, data, deviceId, isMoving, temperature);
         return repository.save(reading);
     }
 }

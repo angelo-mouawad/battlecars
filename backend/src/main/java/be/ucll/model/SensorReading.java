@@ -27,6 +27,16 @@ public class SensorReading {
     @Column(name = "timestamp", nullable = false)
     private LocalDateTime timestamp;
 
+    @Column(name = "device_id", nullable = true)
+    private Integer deviceId;
+
+    @Column(name = "is_moving", nullable = true)
+    private Boolean isMoving;
+
+    @Column(name = "temperature", nullable = true)
+    private Integer temperature;
+
+
     // All other sensor fields stored as native PostgreSQL jsonb.
     // jsonb = binary JSON — faster queries, validated on insert, no casting needed.
     // New ESP32 fields flow in automatically without any schema changes.
@@ -36,10 +46,13 @@ public class SensorReading {
 
     public SensorReading() {}
 
-    public SensorReading(Integer carId, String event, String data) {
+    public SensorReading(Integer carId, String event, String data, Integer deviceId, Boolean isMoving, Integer temperature) {
         this.carId = carId;
         this.event = event;
         this.data = data;
+        this.deviceId = deviceId;
+        this.isMoving = isMoving;
+        this.temperature = temperature;
         this.timestamp = LocalDateTime.now();
     }
 
@@ -56,4 +69,13 @@ public class SensorReading {
 
     public String getData() { return data; }
     public void setData(String data) { this.data = data; }
+
+    public Integer getDeviceId() { return deviceId; }
+    public void setDeviceId(Integer deviceId) { this.deviceId = deviceId; }
+
+    public Boolean getIsMoving() { return isMoving; }
+    public void setIsMoving(Boolean isMoving) { this.isMoving = isMoving; }
+
+    public Integer getTemperature() { return temperature; }
+    public void setTemperature(Integer temperature) { this.temperature = temperature; }
 }
