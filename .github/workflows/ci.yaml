@@ -2,7 +2,9 @@ name: Run tests
 
 on:
   push:
-    branches: ['main', 'prod']
+    branches: ["main", "prod", "sec"]
+  pull_request:
+    branches: ["main"]
 
 jobs:
   # -------- Frontend --------
@@ -27,3 +29,51 @@ jobs:
 
       - name: Run backend tests
         run: cd backend && mvn test
+
+  # -------- SAST Security Scan --------
+  sast-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Semgrep OSS
+        run: pip install semgrep
+
+      - name: Run Semgrep Scan
+        run: semgrep scan --config="p/default" --config="p/java" --config="p/nextjs" --severity ERROR --error
+
+  # -------- Container Security Scan --------
+  container-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Build Frontend Image
+        run: docker build --no-cache --pull -t project-frontend:test ./frontend
+
+      - name: Run Trivy Scan (Frontend)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "project-frontend:test"
+          format: "table"
+          exit-code: "1"
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: false
+          vuln-type: "os,library"
+          scanners: "vuln,secret,misconfig"
+
+      - name: Build Backend Image
+        run: docker build --no-cache --pull -t project-backend:test ./backend
+
+      - name: Run Trivy Scan (Backend)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "project-backend:test"
+          format: "table"
+          exit-code: "1"
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: false
+          vuln-type: "os,library"
+          scanners: "vuln,misconfig"

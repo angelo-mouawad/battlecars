@@ -19,8 +19,11 @@
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
+        <postgresql.version>42.7.11</postgresql.version>
+        <tomcat.version>10.1.55</tomcat.version>
     </properties>
 
+    
     <dependencies>
         <!-- Web / REST API -->
         <dependency>

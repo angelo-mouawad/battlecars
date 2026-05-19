@@ -34,62 +34,61 @@ public class DataControllerTest {
 
     @Test
     void postData_validReading_returns200() throws Exception {
-        // Arrange — what we send
-        SensorReading input = new SensorReading("esp32-team1", 22.4, false);
+        SensorReading input = new SensorReading(1, "move", "{\"speed\":\"fast\"}", 1, true,22);
 
-        // What the service returns after saving
-        SensorReading saved = new SensorReading("esp32-team1", 22.4, false);
+        SensorReading saved = new SensorReading(1, "move", "{\"speed\":\"fast\"}", 1, true,22);
         saved.setTimestamp(LocalDateTime.of(2026, 5, 11, 10, 0, 0));
 
         when(sensorService.save(any(SensorReading.class))).thenReturn(saved);
 
-        // Act + Assert
         mockMvc.perform(post("/api/data")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(input)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(input)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.deviceId").value("esp32-team1"))
-                .andExpect(jsonPath("$.temperature").value(22.4))
-                .andExpect(jsonPath("$.isMoving").value(false));
+                .andExpect(jsonPath("$.carId").value(1))
+                .andExpect(jsonPath("$.event").value("move"))
+                .andExpect(jsonPath("$.deviceId").value(1))
+                .andExpect(jsonPath("$.isMoving").value(true))
+                .andExpect(jsonPath("$.temperature").value(22));
     }
 
     @Test
-    void postData_missingBody_returns400() throws Exception {
+    void postData_missingBody_returns200() throws Exception {
         mockMvc.perform(post("/api/data")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
-                .andExpect(status().isOk()); // empty body is accepted, fields are null
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk());
     }
 
     @Test
-    void postData_highTemperature_savesCorrectly() throws Exception {
-        SensorReading input = new SensorReading("esp32-team1", 99.9, true);
-        SensorReading saved = new SensorReading("esp32-team1", 99.9, true);
+    void postData_hitEvent_savesCorrectly() throws Exception {
+        SensorReading input = new SensorReading(2, "hit", "{\"hit\":true,\"hitStrength\":\"heavy\"}", 2, true,25);
+        SensorReading saved = new SensorReading(2, "hit", "{\"hit\":true,\"hitStrength\":\"heavy\"}", 2, true,25);
 
         when(sensorService.save(any(SensorReading.class))).thenReturn(saved);
 
         mockMvc.perform(post("/api/data")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(input)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(input)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.temperature").value(99.9))
-                .andExpect(jsonPath("$.isMoving").value(true));
+                .andExpect(jsonPath("$.carId").value(2))
+                .andExpect(jsonPath("$.event").value("hit"));
     }
 
     // -------- GET /api/data --------
 
     @Test
     void getAllData_returnsListOfReadings() throws Exception {
-        SensorReading r1 = new SensorReading("esp32-team1", 22.4, false);
-        SensorReading r2 = new SensorReading("esp32-team1", 23.1, true);
+        SensorReading r1 = new SensorReading(1, "move", "{\"speed\":\"fast\"}", 1, true,22);
+        SensorReading r2 = new SensorReading(2, "stop", "{\"speed\":\"stopped\"}", 2, false,20);
 
         when(sensorService.getAll()).thenReturn(List.of(r1, r2));
 
         mockMvc.perform(get("/api/data"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].temperature").value(22.4))
-                .andExpect(jsonPath("$[1].temperature").value(23.1));
+                .andExpect(jsonPath("$[0].carId").value(1))
+                .andExpect(jsonPath("$[1].carId").value(2));
     }
 
     @Test
@@ -105,15 +104,15 @@ public class DataControllerTest {
 
     @Test
     void getLatest_returnsLatestReading() throws Exception {
-        SensorReading latest = new SensorReading("esp32-team1", 25.0, false);
+        SensorReading latest = new SensorReading(1, "speed", "{\"speed\":\"fast\"}", 1, true,22);
         latest.setTimestamp(LocalDateTime.of(2026, 5, 11, 14, 0, 0));
 
         when(sensorService.getLatest()).thenReturn(latest);
 
         mockMvc.perform(get("/api/data/latest"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.deviceId").value("esp32-team1"))
-                .andExpect(jsonPath("$.temperature").value(25.0));
+                .andExpect(jsonPath("$.carId").value(1))
+                .andExpect(jsonPath("$.event").value("speed"));
     }
 
     @Test
@@ -122,6 +121,34 @@ public class DataControllerTest {
 
         mockMvc.perform(get("/api/data/latest"))
                 .andExpect(status().isOk());
+    }
+
+    // -------- GET /api/data/car/{carId} --------
+
+    @Test
+    void getByCarId_returnsCar1Readings() throws Exception {
+        SensorReading r1 = new SensorReading(1, "move", "{\"speed\":\"fast\"}", 1, true,22);
+
+        when(sensorService.getByCarId(1)).thenReturn(List.of(r1));
+
+        mockMvc.perform(get("/api/data/car/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].carId").value(1));
+    }
+
+    // -------- GET /api/data/hits --------
+
+    @Test
+    void getHits_returnsHitReadings() throws Exception {
+        SensorReading hit = new SensorReading(1, "hit", "{\"hit\":true,\"hitStrength\":\"light\"}", 1, true,23);
+
+        when(sensorService.getHits()).thenReturn(List.of(hit));
+
+        mockMvc.perform(get("/api/data/hits"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].event").value("hit"));
     }
 
     // -------- GET /status --------
