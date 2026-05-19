@@ -1,8 +1,11 @@
 name: Build and publish Docker images
 
 on:
-  push:
-    branches: ['prod', 'main']
+  workflow_run:
+    workflows: ["Run tests"]
+    types:
+      - completed
+    branches: ['main', 'prod']
 
 env:
   REGISTRY: ghcr.io
@@ -12,9 +15,11 @@ env:
   NEXT_PUBLIC_WS_URL_STAGING: "wss://team-01-en-backend-itip-en-01-staging.apps.okd.ucll.cloud/ws"
 
 jobs:
-  # -------- Frontend Staging (on push to main) --------
+  # -------- Frontend Staging (on main, after CI passes) --------
   build-frontend-staging:
-    if: github.ref == 'refs/heads/main'
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -22,6 +27,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Log in to registry
         uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
@@ -49,9 +56,11 @@ jobs:
             NEXT_PUBLIC_API_URL=${{ env.NEXT_PUBLIC_API_URL_STAGING }}
             NEXT_PUBLIC_WS_URL=${{ env.NEXT_PUBLIC_WS_URL_STAGING }}
 
-  # -------- Backend Staging (on push to main) --------
+  # -------- Backend Staging (on main, after CI passes) --------
   build-backend-staging:
-    if: github.ref == 'refs/heads/main'
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -59,6 +68,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Log in to registry
         uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
@@ -83,9 +94,11 @@ jobs:
           tags: ${{ steps.meta-backend-staging.outputs.tags }}
           labels: ${{ steps.meta-backend-staging.outputs.labels }}
 
-  # -------- Frontend Production (on push to prod) --------
+  # -------- Frontend Production (on prod, after CI passes) --------
   build-frontend-prod:
-    if: github.ref == 'refs/heads/prod'
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'prod'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -93,6 +106,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Log in to registry
         uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
@@ -120,9 +135,11 @@ jobs:
             NEXT_PUBLIC_API_URL=${{ env.NEXT_PUBLIC_API_URL_PROD }}
             NEXT_PUBLIC_WS_URL=${{ env.NEXT_PUBLIC_WS_URL_PROD }}
 
-  # -------- Backend Production (on push to prod) --------
+  # -------- Backend Production (on prod, after CI passes) --------
   build-backend-prod:
-    if: github.ref == 'refs/heads/prod'
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'prod'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -130,6 +147,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Log in to registry
         uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
