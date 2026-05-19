@@ -63,8 +63,8 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({ player = 1 }) => 
   };
 
   return (
-    <div className="bg-[#0d1b2e] text-white p-4 shadow-lg w-fit h-full flex flex-col">
-      <h2 className="text-s font-black tracking-widest text-center mb-33">CONTROLS</h2>
+    <div className="bg-[#0d1b2e] text-white p-4 shadow-lg w-fit flex flex-col justify-center">
+      <h2 className="text-s font-black tracking-widest text-center mb-4">CONTROLS</h2>
       <div className="flex flex-col items-center gap-1">
         <h3 className="text-xs font-black text-gray-400 mb-3 text-center">MOVEMENT</h3>
         <Key label={keys.up} />

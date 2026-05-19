@@ -1,6 +1,6 @@
-export default function Field() {
+﻿export default function Field() {
   return (
-    <div className="relative w-full aspect-[19/6] max-w-6xl mx-auto bg-[#1a1a1a] border-8 border-[#2a2a2a] shadow-[0_0_40px_#000] overflow-hidden h-[80vh]">
+    <div className="relative w-full aspect-video self-start flex-1 bg-[#1a1a1a] border-8 border-[#2a2a2a] shadow-[0_0_40px_#000] overflow-hidden mt-10">
 
       <div className="absolute top-0 left-0 w-16 h-16 border-r-4 border-b-4 border-[#ff4400] opacity-60" />
       <div className="absolute top-0 right-0 w-16 h-16 border-l-4 border-b-4 border-[#ff4400] opacity-60" />

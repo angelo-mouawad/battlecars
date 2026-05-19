@@ -1,9 +1,14 @@
 package be.ucll.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -24,5 +29,31 @@ public class PlayerController {
     @GetMapping
     public ResponseEntity<List<Player>> getAllPlayers() {
         return ResponseEntity.ok(playerService.getAll());
+    }
+
+    // POST /api/players
+    // Body: { "name": "...", "password": "..." }
+    @PostMapping
+    public ResponseEntity<Player> createPlayer(@RequestBody Map<String, String> body) {
+        Player created = playerService.createPlayer(body.get("name"), body.get("password"));
+        return ResponseEntity.ok(created);
+    }
+
+    // PATCH /api/players/{name}/password
+    // Body: { "password": "..." }
+    @PatchMapping("/{name}/password")
+    public ResponseEntity<Player> changePassword(@PathVariable String name,
+                                                 @RequestBody Map<String, String> body) {
+        Player updated = playerService.changePassword(name, body.get("password"));
+        return ResponseEntity.ok(updated);
+    }
+
+    // PATCH /api/players/{name}/score
+    // Body: { "points": 10 }
+    @PatchMapping("/{name}/score")
+    public ResponseEntity<Player> addPoints(@PathVariable String name,
+                                            @RequestBody Map<String, Integer> body) {
+        Player updated = playerService.addPoints(name, body.get("points"));
+        return ResponseEntity.ok(updated);
     }
 }
