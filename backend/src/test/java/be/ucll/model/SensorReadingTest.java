@@ -8,18 +8,18 @@ public class SensorReadingTest {
 
     @Test
     void constructor_setsAllFields() {
-        SensorReading reading = new SensorReading("esp32-team1", 22.4, false);
+        SensorReading reading = new SensorReading(1, "move", "{\"isMoving\":true,\"speed\":\"fast\"}");
 
-        assertThat(reading.getDeviceId()).isEqualTo("esp32-team1");
-        assertThat(reading.getTemperature()).isEqualTo(22.4);
-        assertThat(reading.getIsMoving()).isFalse();
+        assertThat(reading.getCarId()).isEqualTo(1);
+        assertThat(reading.getEvent()).isEqualTo("move");
+        assertThat(reading.getData()).isEqualTo("{\"isMoving\":true,\"speed\":\"fast\"}");
         assertThat(reading.getTimestamp()).isNotNull();
     }
 
     @Test
     void constructor_setsTimestampAutomatically() {
         LocalDateTime before = LocalDateTime.now().minusSeconds(1);
-        SensorReading reading = new SensorReading("esp32-team1", 22.4, false);
+        SensorReading reading = new SensorReading(1, "hit", "{\"hit\":true}");
         LocalDateTime after = LocalDateTime.now().plusSeconds(1);
 
         assertThat(reading.getTimestamp()).isBetween(before, after);
@@ -29,32 +29,38 @@ public class SensorReadingTest {
     void emptyConstructor_fieldsAreNull() {
         SensorReading reading = new SensorReading();
 
-        assertThat(reading.getDeviceId()).isNull();
-        assertThat(reading.getTemperature()).isNull();
-        assertThat(reading.getIsMoving()).isNull();
+        assertThat(reading.getCarId()).isNull();
+        assertThat(reading.getEvent()).isNull();
+        assertThat(reading.getData()).isNull();
     }
 
     @Test
     void setters_updateFieldsCorrectly() {
         SensorReading reading = new SensorReading();
-        reading.setDeviceId("esp32-team1");
-        reading.setTemperature(25.0);
-        reading.setIsMoving(true);
+        reading.setCarId(2);
+        reading.setEvent("stop");
+        reading.setData("{\"isMoving\":false,\"speed\":\"stopped\"}");
 
-        assertThat(reading.getDeviceId()).isEqualTo("esp32-team1");
-        assertThat(reading.getTemperature()).isEqualTo(25.0);
-        assertThat(reading.getIsMoving()).isTrue();
+        assertThat(reading.getCarId()).isEqualTo(2);
+        assertThat(reading.getEvent()).isEqualTo("stop");
+        assertThat(reading.getData()).contains("stopped");
     }
 
     @Test
-    void temperature_canBeNegative() {
-        SensorReading reading = new SensorReading("esp32-team1", -10.5, false);
-        assertThat(reading.getTemperature()).isEqualTo(-10.5);
+    void constructor_car2HitEvent() {
+        SensorReading reading = new SensorReading(2, "hit", "{\"hit\":true,\"hitStrength\":\"heavy\"}");
+
+        assertThat(reading.getCarId()).isEqualTo(2);
+        assertThat(reading.getEvent()).isEqualTo("hit");
+        assertThat(reading.getData()).contains("heavy");
     }
 
     @Test
-    void isMoving_canBeTrue() {
-        SensorReading reading = new SensorReading("esp32-team1", 22.4, true);
-        assertThat(reading.getIsMoving()).isTrue();
+    void constructor_speedEvent() {
+        SensorReading reading = new SensorReading(1, "speed", "{\"isMoving\":true,\"speed\":\"fast\",\"hit\":false}");
+
+        assertThat(reading.getCarId()).isEqualTo(1);
+        assertThat(reading.getEvent()).isEqualTo("speed");
+        assertThat(reading.getData()).contains("fast");
     }
 }

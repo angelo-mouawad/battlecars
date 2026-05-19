@@ -30,7 +30,7 @@ public class SensorServiceTest {
 
     @BeforeEach
     void setUp() {
-        reading = new SensorReading("esp32-team1", 22.4, false);
+        reading = new SensorReading(1, "move", "{\"isMoving\":true,\"speed\":\"fast\",\"hit\":false,\"hitStrength\":\"none\",\"orientation\":\"unknown\"}");
         reading.setTimestamp(LocalDateTime.of(2026, 5, 11, 10, 0, 0));
     }
 
@@ -43,9 +43,9 @@ public class SensorServiceTest {
         SensorReading result = sensorService.save(reading);
 
         assertThat(result).isNotNull();
-        assertThat(result.getDeviceId()).isEqualTo("esp32-team1");
-        assertThat(result.getTemperature()).isEqualTo(22.4);
-        assertThat(result.getIsMoving()).isFalse();
+        assertThat(result.getCarId()).isEqualTo(1);
+        assertThat(result.getEvent()).isEqualTo("move");
+        assertThat(result.getData()).contains("fast");
     }
 
     @Test
@@ -58,27 +58,29 @@ public class SensorServiceTest {
     }
 
     @Test
-    void save_readingWithMovingTrue_savedCorrectly() {
-        SensorReading movingReading = new SensorReading("esp32-team1", 22.4, true);
-        when(repository.save(any(SensorReading.class))).thenReturn(movingReading);
+    void save_car2HitReading_savedCorrectly() {
+        SensorReading hitReading = new SensorReading(2, "hit", "{\"isMoving\":true,\"hit\":true,\"hitStrength\":\"heavy\"}");
+        when(repository.save(any(SensorReading.class))).thenReturn(hitReading);
 
-        SensorReading result = sensorService.save(movingReading);
+        SensorReading result = sensorService.save(hitReading);
 
-        assertThat(result.getIsMoving()).isTrue();
+        assertThat(result.getCarId()).isEqualTo(2);
+        assertThat(result.getEvent()).isEqualTo("hit");
+        assertThat(result.getData()).contains("heavy");
     }
 
     // -------- getAll() --------
 
     @Test
     void getAll_returnsAllReadings() {
-        SensorReading r2 = new SensorReading("esp32-team1", 23.0, true);
+        SensorReading r2 = new SensorReading(2, "stop", "{\"isMoving\":false,\"speed\":\"stopped\"}");
         when(repository.findAll()).thenReturn(List.of(reading, r2));
 
         List<SensorReading> result = sensorService.getAll();
 
         assertThat(result).hasSize(2);
-        assertThat(result.get(0).getTemperature()).isEqualTo(22.4);
-        assertThat(result.get(1).getTemperature()).isEqualTo(23.0);
+        assertThat(result.get(0).getCarId()).isEqualTo(1);
+        assertThat(result.get(1).getCarId()).isEqualTo(2);
     }
 
     @Test
@@ -108,7 +110,7 @@ public class SensorServiceTest {
         SensorReading result = sensorService.getLatest();
 
         assertThat(result).isNotNull();
-        assertThat(result.getDeviceId()).isEqualTo("esp32-team1");
+        assertThat(result.getCarId()).isEqualTo(1);
     }
 
     @Test
@@ -129,31 +131,70 @@ public class SensorServiceTest {
         verify(repository, times(1)).findTopByOrderByTimestampDesc();
     }
 
+    // -------- saveFromJson() --------
+
     @Test
     void saveFromJson_validJson_savesCorrectly() throws Exception {
-        String json = "{\"deviceId\":\"esp32-team1\",\"temperature\":22.4,\"isMoving\":true}";
+        String json = "{\"carId\":1,\"event\":\"move\",\"isMoving\":true,\"speed\":\"fast\",\"hit\":false,\"hitStrength\":\"none\",\"orientation\":\"unknown\"}";
 
-        SensorReading mockReading = new SensorReading("esp32-team1", 22.4, true);
+        SensorReading mockReading = new SensorReading(1, "move", "{\"isMoving\":true,\"speed\":\"fast\",\"hit\":false,\"hitStrength\":\"none\",\"orientation\":\"unknown\"}");
         when(repository.save(any(SensorReading.class))).thenReturn(mockReading);
 
         SensorReading result = sensorService.saveFromJson(json);
 
-        assertEquals("esp32-team1", result.getDeviceId());
-        assertEquals(22.4, result.getTemperature());
-        assertTrue(result.getIsMoving());
+        assertThat(result.getCarId()).isEqualTo(1);
+        assertThat(result.getEvent()).isEqualTo("move");
+        assertThat(result.getData()).contains("fast");
     }
 
     @Test
-    void saveFromJson_missingFields_doesNotCrash() throws Exception {
-        String json = "{\"deviceId\":\"esp32-team1\"}";
+    void saveFromJson_hitEvent_savesCorrectly() throws Exception {
+        String json = "{\"carId\":2,\"event\":\"hit\",\"isMoving\":true,\"speed\":\"unknown\",\"hit\":true,\"hitStrength\":\"heavy\",\"orientation\":\"unknown\"}";
 
-        SensorReading mockReading = new SensorReading("esp32-team1", null, null);
+        SensorReading mockReading = new SensorReading(2, "hit", "{\"isMoving\":true,\"speed\":\"unknown\",\"hit\":true,\"hitStrength\":\"heavy\",\"orientation\":\"unknown\"}");
         when(repository.save(any(SensorReading.class))).thenReturn(mockReading);
 
         SensorReading result = sensorService.saveFromJson(json);
 
-        assertEquals("esp32-team1", result.getDeviceId());
-        assertNull(result.getTemperature());
-        assertNull(result.getIsMoving());
+        assertThat(result.getCarId()).isEqualTo(2);
+        assertThat(result.getEvent()).isEqualTo("hit");
+        assertThat(result.getData()).contains("heavy");
+    }
+
+    @Test
+    void saveFromJson_missingCarId_doesNotCrash() throws Exception {
+        String json = "{\"event\":\"move\",\"isMoving\":true}";
+
+        SensorReading mockReading = new SensorReading(null, "move", "{\"isMoving\":true}");
+        when(repository.save(any(SensorReading.class))).thenReturn(mockReading);
+
+        SensorReading result = sensorService.saveFromJson(json);
+
+        assertThat(result.getEvent()).isEqualTo("move");
+    }
+
+    // -------- getByCarId() --------
+
+    @Test
+    void getByCarId_returnsCar1Readings() {
+        when(repository.findByCarId(1)).thenReturn(List.of(reading));
+
+        List<SensorReading> result = sensorService.getByCarId(1);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getCarId()).isEqualTo(1);
+    }
+
+    // -------- getHits() --------
+
+    @Test
+    void getHits_returnsHitReadings() {
+        SensorReading hit = new SensorReading(1, "hit", "{\"hit\":true,\"hitStrength\":\"light\"}");
+        when(repository.findAllHits()).thenReturn(List.of(hit));
+
+        List<SensorReading> result = sensorService.getHits();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getEvent()).isEqualTo("hit");
     }
 }
