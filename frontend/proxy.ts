@@ -5,6 +5,7 @@ export function proxy(request: NextRequest) {
  const isDev = process.env.NODE_ENV === 'development';
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  const wsUrl = process.env.NEXT_PUBLIC_WS_URL;
   let cspHeader = '';
 
   if (isDev) {
@@ -32,7 +33,7 @@ export function proxy(request: NextRequest) {
       form-action 'self';
       frame-ancestors 'none';
       upgrade-insecure-requests;
-      connect-src 'self' ${apiUrl};
+      connect-src 'self' ${apiUrl} ${wsUrl};
     `.replace(/\s{2,}/g, ' ').trim();
   }
 
