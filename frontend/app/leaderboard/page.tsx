@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useEffect, useState } from 'react';
-import { Player } from '@/data/players';
+import { Player } from '@/types/types';
 
 export default function LeaderboardPage() {
   const [players, setPlayers] = useState<Player[]>([]);
