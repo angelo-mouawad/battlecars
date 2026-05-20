@@ -34,9 +34,9 @@ public class DataControllerTest {
 
     @Test
     void postData_validReading_returns200() throws Exception {
-        SensorReading input = new SensorReading(1, "move", "{\"speed\":\"fast\"}", 1, true,22);
+        SensorReading input = new SensorReading(1, "move", "{\"isMoving\":true,\"speed\":\"fast\"}");
 
-        SensorReading saved = new SensorReading(1, "move", "{\"speed\":\"fast\"}", 1, true,22);
+        SensorReading saved = new SensorReading(1, "move", "{\"isMoving\":true,\"speed\":\"fast\"}");
         saved.setTimestamp(LocalDateTime.of(2026, 5, 11, 10, 0, 0));
 
         when(sensorService.save(any(SensorReading.class))).thenReturn(saved);
@@ -46,10 +46,7 @@ public class DataControllerTest {
                         .content(objectMapper.writeValueAsString(input)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.carId").value(1))
-                .andExpect(jsonPath("$.event").value("move"))
-                .andExpect(jsonPath("$.deviceId").value(1))
-                .andExpect(jsonPath("$.isMoving").value(true))
-                .andExpect(jsonPath("$.temperature").value(22));
+                .andExpect(jsonPath("$.event").value("move"));
     }
 
     @Test
@@ -62,8 +59,8 @@ public class DataControllerTest {
 
     @Test
     void postData_hitEvent_savesCorrectly() throws Exception {
-        SensorReading input = new SensorReading(2, "hit", "{\"hit\":true,\"hitStrength\":\"heavy\"}", 2, true,25);
-        SensorReading saved = new SensorReading(2, "hit", "{\"hit\":true,\"hitStrength\":\"heavy\"}", 2, true,25);
+        SensorReading input = new SensorReading(2, "hit", "{\"hit\":true,\"hitStrength\":\"heavy\"}");
+        SensorReading saved = new SensorReading(2, "hit", "{\"hit\":true,\"hitStrength\":\"heavy\"}");
 
         when(sensorService.save(any(SensorReading.class))).thenReturn(saved);
 
@@ -79,8 +76,8 @@ public class DataControllerTest {
 
     @Test
     void getAllData_returnsListOfReadings() throws Exception {
-        SensorReading r1 = new SensorReading(1, "move", "{\"speed\":\"fast\"}", 1, true,22);
-        SensorReading r2 = new SensorReading(2, "stop", "{\"speed\":\"stopped\"}", 2, false,20);
+        SensorReading r1 = new SensorReading(1, "move", "{\"isMoving\":true}");
+        SensorReading r2 = new SensorReading(2, "stop", "{\"isMoving\":false}");
 
         when(sensorService.getAll()).thenReturn(List.of(r1, r2));
 
@@ -104,7 +101,7 @@ public class DataControllerTest {
 
     @Test
     void getLatest_returnsLatestReading() throws Exception {
-        SensorReading latest = new SensorReading(1, "speed", "{\"speed\":\"fast\"}", 1, true,22);
+        SensorReading latest = new SensorReading(1, "speed", "{\"speed\":\"fast\"}");
         latest.setTimestamp(LocalDateTime.of(2026, 5, 11, 14, 0, 0));
 
         when(sensorService.getLatest()).thenReturn(latest);
@@ -127,7 +124,7 @@ public class DataControllerTest {
 
     @Test
     void getByCarId_returnsCar1Readings() throws Exception {
-        SensorReading r1 = new SensorReading(1, "move", "{\"speed\":\"fast\"}", 1, true,22);
+        SensorReading r1 = new SensorReading(1, "move", "{\"isMoving\":true}");
 
         when(sensorService.getByCarId(1)).thenReturn(List.of(r1));
 
@@ -141,7 +138,7 @@ public class DataControllerTest {
 
     @Test
     void getHits_returnsHitReadings() throws Exception {
-        SensorReading hit = new SensorReading(1, "hit", "{\"hit\":true,\"hitStrength\":\"light\"}", 1, true,23);
+        SensorReading hit = new SensorReading(1, "hit", "{\"hit\":true,\"hitStrength\":\"light\"}");
 
         when(sensorService.getHits()).thenReturn(List.of(hit));
 

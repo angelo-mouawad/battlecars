@@ -30,7 +30,7 @@ public class SensorServiceTest {
 
     @BeforeEach
     void setUp() {
-        reading = new SensorReading(1, "move", "{\"speed\":\"fast\",\"hit\":false,\"hitStrength\":\"none\",\"orientation\":\"unknown\"}", 1, true,22);
+        reading = new SensorReading(1, "move", "{\"isMoving\":true,\"speed\":\"fast\",\"hit\":false,\"hitStrength\":\"none\",\"orientation\":\"unknown\"}");
         reading.setTimestamp(LocalDateTime.of(2026, 5, 11, 10, 0, 0));
     }
 
@@ -46,9 +46,6 @@ public class SensorServiceTest {
         assertThat(result.getCarId()).isEqualTo(1);
         assertThat(result.getEvent()).isEqualTo("move");
         assertThat(result.getData()).contains("fast");
-        assertThat(result.getDeviceId()).isEqualTo(1);
-        assertThat(result.getIsMoving()).isTrue();
-        assertThat(result.getTemperature()).isEqualTo(22);
     }
 
     @Test
@@ -62,7 +59,7 @@ public class SensorServiceTest {
 
     @Test
     void save_car2HitReading_savedCorrectly() {
-        SensorReading hitReading = new SensorReading(2, "hit", "{\"hit\":true,\"hitStrength\":\"heavy\"}", 2, true,24);
+        SensorReading hitReading = new SensorReading(2, "hit", "{\"isMoving\":true,\"hit\":true,\"hitStrength\":\"heavy\"}");
         when(repository.save(any(SensorReading.class))).thenReturn(hitReading);
 
         SensorReading result = sensorService.save(hitReading);
@@ -76,7 +73,7 @@ public class SensorServiceTest {
 
     @Test
     void getAll_returnsAllReadings() {
-        SensorReading r2 = new SensorReading(2, "stop", "{\"speed\":\"stopped\"}", 2, false,20);
+        SensorReading r2 = new SensorReading(2, "stop", "{\"isMoving\":false,\"speed\":\"stopped\"}");
         when(repository.findAll()).thenReturn(List.of(reading, r2));
 
         List<SensorReading> result = sensorService.getAll();
@@ -138,26 +135,23 @@ public class SensorServiceTest {
 
     @Test
     void saveFromJson_validJson_savesCorrectly() throws Exception {
-        String json = "{\"carId\":1,\"event\":\"move\",\"deviceId\":1,\"isMoving\":true,\"temperature\":22,\"speed\":\"fast\",\"hit\":false,\"hitStrength\":\"none\",\"orientation\":\"unknown\"}";
+        String json = "{\"carId\":1,\"event\":\"move\",\"isMoving\":true,\"speed\":\"fast\",\"hit\":false,\"hitStrength\":\"none\",\"orientation\":\"unknown\"}";
 
-        SensorReading mockReading = new SensorReading(1, "move", "{\"speed\":\"fast\",\"hit\":false,\"hitStrength\":\"none\",\"orientation\":\"unknown\"}", 1, true,22);
+        SensorReading mockReading = new SensorReading(1, "move", "{\"isMoving\":true,\"speed\":\"fast\",\"hit\":false,\"hitStrength\":\"none\",\"orientation\":\"unknown\"}");
         when(repository.save(any(SensorReading.class))).thenReturn(mockReading);
 
         SensorReading result = sensorService.saveFromJson(json);
 
         assertThat(result.getCarId()).isEqualTo(1);
         assertThat(result.getEvent()).isEqualTo("move");
-        assertThat(result.getDeviceId()).isEqualTo(1);
-        assertThat(result.getIsMoving()).isTrue();
-        assertThat(result.getTemperature()).isEqualTo(22);
         assertThat(result.getData()).contains("fast");
     }
 
     @Test
     void saveFromJson_hitEvent_savesCorrectly() throws Exception {
-        String json = "{\"carId\":2,\"event\":\"hit\",\"deviceId\":2,\"isMoving\":true,\"temperature\":25,\"speed\":\"unknown\",\"hit\":true,\"hitStrength\":\"heavy\",\"orientation\":\"unknown\"}";
+        String json = "{\"carId\":2,\"event\":\"hit\",\"isMoving\":true,\"speed\":\"unknown\",\"hit\":true,\"hitStrength\":\"heavy\",\"orientation\":\"unknown\"}";
 
-        SensorReading mockReading = new SensorReading(2, "hit", "{\"speed\":\"unknown\",\"hit\":true,\"hitStrength\":\"heavy\",\"orientation\":\"unknown\"}", 2, true,25);
+        SensorReading mockReading = new SensorReading(2, "hit", "{\"isMoving\":true,\"speed\":\"unknown\",\"hit\":true,\"hitStrength\":\"heavy\",\"orientation\":\"unknown\"}");
         when(repository.save(any(SensorReading.class))).thenReturn(mockReading);
 
         SensorReading result = sensorService.saveFromJson(json);
@@ -168,18 +162,15 @@ public class SensorServiceTest {
     }
 
     @Test
-    void saveFromJson_missingOptionalFields_doesNotCrash() throws Exception {
-        String json = "{\"carId\":1,\"event\":\"move\"}";
+    void saveFromJson_missingCarId_doesNotCrash() throws Exception {
+        String json = "{\"event\":\"move\",\"isMoving\":true}";
 
-        SensorReading mockReading = new SensorReading(1, "move", "{}", null, null, null);
+        SensorReading mockReading = new SensorReading(null, "move", "{\"isMoving\":true}");
         when(repository.save(any(SensorReading.class))).thenReturn(mockReading);
 
         SensorReading result = sensorService.saveFromJson(json);
 
         assertThat(result.getEvent()).isEqualTo("move");
-        assertThat(result.getDeviceId()).isNull();
-        assertThat(result.getIsMoving()).isNull();
-        assertThat(result.getTemperature()).isNull();
     }
 
     // -------- getByCarId() --------
@@ -198,7 +189,7 @@ public class SensorServiceTest {
 
     @Test
     void getHits_returnsHitReadings() {
-        SensorReading hit = new SensorReading(1, "hit", "{\"hit\":true,\"hitStrength\":\"light\"}", 1, true,23);
+        SensorReading hit = new SensorReading(1, "hit", "{\"hit\":true,\"hitStrength\":\"light\"}");
         when(repository.findAllHits()).thenReturn(List.of(hit));
 
         List<SensorReading> result = sensorService.getHits();
