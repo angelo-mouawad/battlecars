@@ -137,7 +137,7 @@ export default function Lobby() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0d1b2e] flex flex-col items-center justify-center gap-10 text-white">
+    <div className="h-full bg-[#0d1b2e] flex flex-col items-center justify-center gap-10 text-white">
       <h1 className="text-4xl font-black uppercase tracking-[0.3em]">Battle Bots</h1>
       <div className="bg-[#1a2e47] border border-[#2a4060] rounded-2xl p-8 flex flex-col gap-8 shadow-2xl">
         <div className="flex items-start gap-8">
@@ -147,7 +147,12 @@ export default function Lobby() {
         </div>
         <div className="flex gap-4">
           <button
-            onClick={() => { if (canPlay) router.push('/play?p1=' + slot1.selectedId + '&p2=' + slot2.selectedId); }}
+            onClick={() => {
+              if (!canPlay) return;
+              const p1 = playerList.find(p => String(p.id) === slot1.selectedId);
+              const p2 = playerList.find(p => String(p.id) === slot2.selectedId);
+              router.push('/play?p1=' + slot1.selectedId + '&p2=' + slot2.selectedId + '&p1name=' + encodeURIComponent(p1?.name ?? 'Unknown') + '&p2name=' + encodeURIComponent(p2?.name ?? 'Unknown'));
+            }}
             disabled={!canPlay}
             className={'flex-1 py-3 rounded-md font-black uppercase tracking-widest text-sm transition-colors ' + (canPlay ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed')}
           >
@@ -160,6 +165,12 @@ export default function Lobby() {
             Leaderboard
           </button>
         </div>
+        <p
+          onClick={() => router.push('/manage')}
+          className="text-xs text-gray-500 hover:text-gray-300 underline cursor-pointer text-center"
+        >
+          Manage Players
+        </p>
       </div>
     </div>
   );

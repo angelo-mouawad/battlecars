@@ -1,6 +1,6 @@
-﻿import { Player } from "../types/types";
+import { Player } from "../types/types";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL;
+const BASE = "";
 
 const getAllPlayers = async (): Promise<Player[]> => {
   const response = await fetch(BASE + "/api/players");
@@ -44,10 +44,16 @@ const addPoints = async (name: string, points: number): Promise<Player> => {
   return response.json();
 };
 
+const deletePlayer = async (id: number): Promise<void> => {
+  const response = await fetch(BASE + "/api/players/" + id, { method: "DELETE" });
+  if (!response.ok) throw new Error("Failed to delete player");
+};
+
 export default {
   getAllPlayers,
   getPlayerById,
   createPlayer,
   changePassword,
   addPoints,
+  deletePlayer,
 };

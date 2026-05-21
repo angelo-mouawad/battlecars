@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -55,5 +56,12 @@ public class PlayerController {
                                             @RequestBody Map<String, Integer> body) {
         Player updated = playerService.addPoints(name, body.get("points"));
         return ResponseEntity.ok(updated);
+    }
+
+    // DELETE /api/players/{id}
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletePlayer(@PathVariable Long id) {
+        playerService.deletePlayer(id);
+        return ResponseEntity.noContent().build();
     }
 }

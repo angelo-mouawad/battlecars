@@ -1,4 +1,9 @@
-export default function Scoreboard() {
+interface ScoreboardProps {
+  player1?: string;
+  player2?: string;
+}
+
+export default function Scoreboard({ player1 = "Unknown", player2 = "Unknown" }: ScoreboardProps) {
   return (
     <div className="flex items-center w-full bg-[#0d1b2e] text-white shadow-2xl">
       <div className="flex-shrink-0 px-3 py-2">
@@ -9,14 +14,20 @@ export default function Scoreboard() {
 
       <div className="flex flex-col flex-1">
         <div className="flex items-center justify-center gap-4 py-2 px-4">
-          <span className="text-base font-black uppercase tracking-widest flex-1 text-right">
-            Bronco
-          </span>
+          <div className="flex flex-col items-end flex-1">
+            <span className="text-base font-black uppercase tracking-widest">
+              Bronco
+            </span>
+            <span className="text-xs text-gray-400 tracking-wider">{player1}</span>
+          </div>
           <span className="text-5xl font-black w-12 text-center leading-none">0</span>
           <span className="text-5xl font-black w-12 text-center leading-none">0</span>
-          <span className="text-base font-black uppercase tracking-widest flex-1 text-left">
-            Magnitude
-          </span>
+          <div className="flex flex-col items-start flex-1">
+            <span className="text-base font-black uppercase tracking-widest">
+              Magnitude
+            </span>
+            <span className="text-xs text-gray-400 tracking-wider">{player2}</span>
+          </div>
         </div>
 
         <div className="flex items-center gap-0 pb-2 px-4">
