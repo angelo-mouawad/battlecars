@@ -57,10 +57,19 @@ public class SensorService {
         return repository.findHeavyHits();
     }
 
-    // Called by WebSocket handler when ESP32 hub sends sensor data as JSON string.
-    // carId and event are extracted as fixed columns for easy querying.
-    // All remaining fields are stored as jsonb — new ESP32 fields work automatically.
+    // Called by WebSocket handler — saves without a match context
     public SensorReading saveFromJson(String json) throws Exception {
+        return saveFromJson(json, null);
+    }
+
+    // Called by WebSocket handler when a match is active — tags the reading with match_id
+    public SensorReading saveFromJsonWithMatch(String json, Long matchId) throws Exception {
+        return saveFromJson(json, matchId);
+    }
+
+    // Core save logic — carId and event extracted as fixed columns,
+    // everything else stored as jsonb so new ESP32 fields work automatically
+    private SensorReading saveFromJson(String json, Long matchId) throws Exception {
         JsonNode node = objectMapper.readTree(json);
 
         Integer carId = node.has("carId") ? node.get("carId").asInt() : null;
@@ -73,7 +82,10 @@ public class SensorService {
 
         String data = objectMapper.writeValueAsString(dataNode);
 
-        SensorReading reading = new SensorReading(carId, event, data);
+        SensorReading reading = matchId != null
+                ? new SensorReading(carId, event, data, matchId)
+                : new SensorReading(carId, event, data);
+
         return repository.save(reading);
     }
 }
