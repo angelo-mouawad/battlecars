@@ -11,7 +11,7 @@ export default function LoginForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== process.env.NEXT_PUBLIC_ADMIN_PASSWORD) {
+    if (password !== process.env.NEXT_PUBLIC_APP_PASSWORD) {
       setError('Incorrect password');
       return;
     }
