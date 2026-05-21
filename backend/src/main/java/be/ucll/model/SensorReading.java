@@ -29,6 +29,10 @@ public class SensorReading {
     @Column(name = "timestamp", nullable = false)
     private LocalDateTime timestamp;
 
+    // Which match this reading belongs to — null if received outside an active match
+    @Column(name = "match_id")
+    private Long matchId;
+
     // All sensor fields stored as native PostgreSQL jsonb.
     // jsonb = binary JSON — faster queries, validated on insert, no casting needed.
     // New ESP32 fields flow in automatically without any schema changes.
@@ -46,6 +50,11 @@ public class SensorReading {
         this.timestamp = LocalDateTime.now();
     }
 
+    public SensorReading(Integer carId, String event, String data, Long matchId) {
+        this(carId, event, data);
+        this.matchId = matchId;
+    }
+
     public Long getId() { return id; }
 
     public Integer getCarId() { return carId; }
@@ -59,4 +68,7 @@ public class SensorReading {
 
     public String getData() { return data; }
     public void setData(String data) { this.data = data; }
+
+    public Long getMatchId() { return matchId; }
+    public void setMatchId(Long matchId) { this.matchId = matchId; }
 }
