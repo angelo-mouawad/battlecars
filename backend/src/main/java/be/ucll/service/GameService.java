@@ -31,12 +31,6 @@ public class GameService {
         this.playerRepository = playerRepository;
     }
 
-    // -------------------------------------------------------------------------
-    // CREATE — called from lobby when both players click Play
-    // Body: { player1Id, car1Id, player2Id, car2Id }
-    // Creates a match in WAITING state with 2 match_player rows (health = 50 each)
-    // Returns the match ID — frontend stores this and sends MATCH_START:{id} over WS
-    // -------------------------------------------------------------------------
     @Transactional
     public Map<String, Object> createMatch(Long player1Id, Integer car1Id,
                                            Long player2Id, Integer car2Id) {
@@ -50,13 +44,20 @@ public class GameService {
         if (car1Id.equals(car2Id))
             throw new IllegalArgumentException("Both players cannot use the same car");
 
+        // Block if a match is already running or waiting
+        matchRepository.findFirstByStatus(Status.ACTIVE).ifPresent(m -> {
+            throw new IllegalStateException("Match " + m.getId() + " is already active. Finish it first.");
+        });
+        matchRepository.findFirstByStatus(Status.WAITING).ifPresent(m -> {
+            throw new IllegalStateException("Match " + m.getId() + " is already waiting to start. Start or cancel it first.");
+        });
+
         Match match = new Match(Status.WAITING);
         match = matchRepository.save(match);
 
         matchPlayerRepository.save(new MatchPlayer(match, player1, car1Id));
         matchPlayerRepository.save(new MatchPlayer(match, player2, car2Id));
 
-        // Return a simple map — avoids lazy loading issues with the full Match entity
         Map<String, Object> result = new HashMap<>();
         result.put("matchId", match.getId());
         result.put("status", match.getStatus().name());
@@ -65,10 +66,6 @@ public class GameService {
         return result;
     }
 
-    // -------------------------------------------------------------------------
-    // START — moves WAITING → ACTIVE
-    // Called right after createMatch — or could be a separate "Ready" button later
-    // -------------------------------------------------------------------------
     @Transactional
     public Map<String, Object> startMatch(Long matchId) {
         Match match = getMatchOrThrow(matchId);
@@ -83,18 +80,6 @@ public class GameService {
         return getMatchState(matchId);
     }
 
-    // -------------------------------------------------------------------------
-    // PROCESS HIT — called by BattleCarsWebSocketHandler every time ESP32 sends hit:true
-    //
-    // carId   = the physical car that was hit (1 or 2)
-    // damage  = 10 by default
-    //           5  if hitStrength = "light"
-    //           10 if hitStrength = "medium" or missing
-    //           15 if hitStrength = "hard"
-    //
-    // Returns: current health of both cars + matchOver flag + winner info if match ended
-    // This result is broadcast back to all browsers over WebSocket as a HIT_RESULT message
-    // -------------------------------------------------------------------------
     @Transactional
     public Map<String, Object> processHit(Long matchId, Integer carId, int damage) {
         Match match = getMatchOrThrow(matchId);
@@ -102,16 +87,15 @@ public class GameService {
         if (match.getStatus() != Status.ACTIVE)
             throw new IllegalStateException("Match is not active, cannot process hit");
 
-        // Find the MatchPlayer entry for the car that was hit
-        MatchPlayer hitPlayer = matchPlayerRepository.findByMatchIdAndCarId(matchId, carId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No player found for car " + carId + " in match " + matchId));
-
-        hitPlayer.applyDamage(damage);
-        matchPlayerRepository.save(hitPlayer);
-
-        // Get both players to build the full health state
+        // Both players lose HP on every hit
+        // TODO: replace with directional logic when electronics team delivers it
+        //   front-front → both lose HP | side hit → only hit car loses HP
         List<MatchPlayer> allPlayers = matchPlayerRepository.findByMatchId(matchId);
+
+        for (MatchPlayer mp : allPlayers) {
+            mp.applyDamage(damage);
+            matchPlayerRepository.save(mp);
+        }
 
         Map<String, Object> result = new HashMap<>();
         result.put("type", "HIT_RESULT");
@@ -119,24 +103,28 @@ public class GameService {
         result.put("hitCarId", carId);
         result.put("damage", damage);
 
-        // Include health for every car in the match
         for (MatchPlayer mp : allPlayers) {
             result.put("car" + mp.getCarId() + "Health", mp.getHealth());
         }
 
-        if (!hitPlayer.isAlive()) {
-            // The car that was hit is dead — the other player wins
+        MatchPlayer dead = allPlayers.stream().filter(mp -> !mp.isAlive()).findFirst().orElse(null);
+
+        if (dead != null) {
             MatchPlayer winner = allPlayers.stream()
-                    .filter(mp -> !mp.getCarId().equals(carId))
+                    .filter(MatchPlayer::isAlive)
                     .findFirst()
-                    .orElseThrow(() -> new IllegalStateException("Could not determine winner"));
+                    .orElse(null); // null = draw (both hit 0 on the same hit)
 
             finishMatch(match, winner);
 
             result.put("matchOver", true);
-            result.put("winnerId", winner.getPlayer().getId());
-            result.put("winnerName", winner.getPlayer().getName());
-            result.put("winnerCarId", winner.getCarId());
+            if (winner != null) {
+                result.put("winnerId", winner.getPlayer().getId());
+                result.put("winnerName", winner.getPlayer().getName());
+                result.put("winnerCarId", winner.getCarId());
+            } else {
+                result.put("draw", true);
+            }
         } else {
             result.put("matchOver", false);
         }
@@ -144,10 +132,6 @@ public class GameService {
         return result;
     }
 
-    // -------------------------------------------------------------------------
-    // END MATCH (manual) — force-end a match, e.g. if a player disconnects
-    // Body: { winnerPlayerId }
-    // -------------------------------------------------------------------------
     @Transactional
     public Map<String, Object> endMatch(Long matchId, Long winnerPlayerId) {
         Match match = getMatchOrThrow(matchId);
@@ -159,10 +143,6 @@ public class GameService {
         return getMatchState(matchId);
     }
 
-    // -------------------------------------------------------------------------
-    // GET MATCH STATE — returns full current state of a match
-    // Used by frontend on page load to recover after a refresh
-    // -------------------------------------------------------------------------
     @Transactional(readOnly = true)
     public Map<String, Object> getMatchState(Long matchId) {
         Match match = getMatchOrThrow(matchId);
@@ -193,10 +173,6 @@ public class GameService {
         return state;
     }
 
-    // -------------------------------------------------------------------------
-    // GET ACTIVE MATCH — returns the currently ACTIVE match or null
-    // Frontend calls this on play page load to reconnect after a refresh
-    // -------------------------------------------------------------------------
     @Transactional(readOnly = true)
     public Map<String, Object> getActiveMatch() {
         return matchRepository.findFirstByStatus(Status.ACTIVE)
@@ -204,9 +180,6 @@ public class GameService {
                 .orElse(null);
     }
 
-    // -------------------------------------------------------------------------
-    // HISTORY — global + per-player + head-to-head
-    // -------------------------------------------------------------------------
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getAllFinishedMatches() {
         return matchRepository.findAll().stream()
@@ -231,29 +204,28 @@ public class GameService {
                 .collect(Collectors.toList());
     }
 
-    // -------------------------------------------------------------------------
-    // PRIVATE HELPERS
-    // -------------------------------------------------------------------------
-
     private Match getMatchOrThrow(Long matchId) {
         return matchRepository.findById(matchId)
                 .orElseThrow(() -> new IllegalArgumentException("Match not found: " + matchId));
     }
 
-    // Core finish logic — sets status, records end time, sets winner, awards +1 point
+    // winnerMatchPlayer is null in a draw — no winner set, no points awarded
     private void finishMatch(Match match, MatchPlayer winnerMatchPlayer) {
         match.setStatus(Status.FINISHED);
         match.setEndedAt(LocalDateTime.now());
-        match.setWinner(winnerMatchPlayer.getPlayer());
-        matchRepository.save(match);
 
-        // Award +1 to winner's all-time score on the players table
-        Player winner = winnerMatchPlayer.getPlayer();
-        winner.setScore(winner.getScore() + 1);
-        playerRepository.save(winner);
+        if (winnerMatchPlayer != null) {
+            match.setWinner(winnerMatchPlayer.getPlayer());
+            matchRepository.save(match);
+
+            Player winner = winnerMatchPlayer.getPlayer();
+            winner.setScore(winner.getScore() + 1);
+            playerRepository.save(winner);
+        } else {
+            matchRepository.save(match);
+        }
     }
 
-    // Converts a Match to a clean summary map — used for history responses
     private Map<String, Object> matchToSummary(Match match) {
         Map<String, Object> summary = new HashMap<>();
         summary.put("matchId", match.getId());

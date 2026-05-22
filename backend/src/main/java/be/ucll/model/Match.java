@@ -40,7 +40,8 @@ public class Match {
 
     public Match(Status status) {
         this.status = status;
-        this.startedAt = LocalDateTime.now();
+        // startedAt is intentionally NOT set here — it's set in GameService.startMatch()
+        // when the match moves WAITING → ACTIVE, so it reflects the real game start time
     }
 
     public Long getId() { return id; }
