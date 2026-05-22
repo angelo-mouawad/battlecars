@@ -1,0 +1,11 @@
+"id","car_id","data","event","timestamp","device_id","is_moving","temperature"
+"1",1,"{""hit"": false, ""speed"": ""unknown"", ""isMoving"": false, ""hitStrength"": ""none"", ""orientation"": ""upright""}","orientation","2026-05-21 13:21:12.069493",NULL,NULL,NULL
+"2",1,"{""hit"": false, ""speed"": ""stopped"", ""isMoving"": false, ""hitStrength"": ""none"", ""orientation"": ""unknown""}","stop","2026-05-21 13:21:44.732018",NULL,NULL,NULL
+"3",1,"{""hit"": false, ""speed"": ""stopped"", ""isMoving"": false, ""hitStrength"": ""none"", ""orientation"": ""unknown""}","speed","2026-05-21 13:21:45.367933",NULL,NULL,NULL
+"4",1,"{""hit"": false, ""speed"": ""stopped"", ""isMoving"": false, ""hitStrength"": ""none"", ""orientation"": ""unknown""}","speed","2026-05-21 13:22:09.538215",NULL,NULL,NULL
+"5",1,"{""hit"": false, ""speed"": ""slow"", ""isMoving"": true, ""hitStrength"": ""none"", ""orientation"": ""unknown""}","speed","2026-05-21 13:22:37.159247",NULL,NULL,NULL
+"6",1,"{""hit"": false, ""speed"": ""stopped"", ""isMoving"": false, ""hitStrength"": ""none"", ""orientation"": ""unknown""}","stop","2026-05-21 13:22:37.801493",NULL,NULL,NULL
+"7",1,"{""hit"": false, ""speed"": ""stopped"", ""isMoving"": false, ""hitStrength"": ""none"", ""orientation"": ""unknown""}","stop","2026-05-21 13:22:37.988891",NULL,NULL,NULL
+"8",1,"{""hit"": false, ""speed"": ""stopped"", ""isMoving"": false, ""hitStrength"": ""none"", ""orientation"": ""unknown""}","stop","2026-05-21 13:22:57.662896",NULL,NULL,NULL
+"9",1,"{""hit"": false, ""speed"": ""stopped"", ""isMoving"": false, ""hitStrength"": ""none"", ""orientation"": ""unknown""}","speed","2026-05-21 13:22:58.068022",NULL,NULL,NULL
+"10",1,"{""hit"": false, ""speed"": ""stopped"", ""isMoving"": false, ""hitStrength"": ""none"", ""orientation"": ""unknown""}","speed","2026-05-21 13:22:58.254515",NULL,NULL,NULL
