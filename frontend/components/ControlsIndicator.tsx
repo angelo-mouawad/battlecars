@@ -21,7 +21,8 @@ const directionMap: Record<string, string> = {
   'D': 'RIGHT', '\u2192': 'RIGHT',
 };
 
-const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({ player = 1 }) => {
+const ControlsIndicator: React.FC<ControlsIndicatorProps> = (props) => {
+  const player = props.player ?? 1;
   const isPlayer2 = player === 2;
 
   const keys = isPlayer2
