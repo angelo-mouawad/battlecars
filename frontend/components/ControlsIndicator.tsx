@@ -1,9 +1,18 @@
-﻿'use client';
-import React, { useEffect, useRef, useState } from 'react';
+'use client';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useWebSocket } from '@/app/hooks/useWebSocket';
 
 interface ControlsIndicatorProps {
   player?: 1 | 2;
   sendCommand: (cmd: string) => void;
+}
+
+interface CarStatus {
+  speed: string;
+  isMoving: boolean;
+  hit: boolean;
+  hitStrength: string;
+  orientation: string;
 }
 
 const directionMap: Record<string, string> = {
@@ -26,6 +35,30 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({ player = 1, sendC
 
   const [active, setActive] = useState<string | null>(null);
   const activeRef = useRef<string | null>(null);
+  const [carStatus, setCarStatus] = useState<CarStatus>({ speed: 'stopped', isMoving: false, hit: false, hitStrength: 'none', orientation: 'unknown' });
+
+  const handleMessage = useCallback((data: string) => {
+    try {
+      const parsed = JSON.parse(data);
+      if (
+        'speed' in parsed ||
+        'isMoving' in parsed ||
+        'hit' in parsed ||
+        'orientation' in parsed
+      ) {
+        setCarStatus({
+          speed: parsed.speed ?? 'unknown',
+          isMoving: parsed.isMoving ?? false,
+          hit: parsed.hit ?? false,
+          hitStrength: parsed.hitStrength ?? 'none',
+          orientation: parsed.orientation ?? 'unknown',
+        });
+      }
+    } catch {
+    }
+  }, []);
+
+  const { sendCommand } = useWebSocket(handleMessage);
 
   const press = (label: string) => {
     const direction = directionMap[label];
@@ -40,6 +73,7 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({ player = 1, sendC
     activeRef.current = null;
     setActive(null);
     sendCommand(`${player}:STOP`);
+    setCarStatus(prev => ({ ...prev, isMoving: false, speed: 'stopped' }));
   };
 
   useEffect(() => {
@@ -79,8 +113,14 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({ player = 1, sendC
     );
   };
 
+  const speedColor =
+    carStatus?.speed === 'stopped' ? 'text-gray-400' :
+    carStatus?.speed === 'slow'    ? 'text-yellow-400' :
+    carStatus?.speed === 'fast'    ? 'text-green-400' :
+    'text-gray-500';
+
   return (
-    <div className="bg-[#0d1b2e] text-white p-4 shadow-lg w-fit flex flex-col justify-center">
+    <div className="bg-[#0d1b2e] text-white p-4 shadow-lg flex flex-col justify-center w-[200px]">
       <h2 className="text-s font-black tracking-widest text-center mb-4">CONTROLS</h2>
       <div className="flex flex-col items-center gap-1">
         <h3 className="text-xs font-black text-gray-400 mb-3 text-center">MOVEMENT</h3>
@@ -90,6 +130,35 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({ player = 1, sendC
           <Key label={keys.down} />
           <Key label={keys.right} />
         </div>
+      </div>
+
+      {/* Car Status */}
+      <div className="mt-4 border-t border-gray-700 pt-3">
+        <h3 className="text-xs font-black text-gray-400 mb-2 text-center tracking-widest">CAR STATUS</h3>
+        <div className="flex flex-col gap-1 text-xs">
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-400">Speed</span>
+              <span className={`font-bold capitalize ${speedColor}`}>{carStatus.speed}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-400">Moving</span>
+              <span className={`font-bold ${carStatus.isMoving ? 'text-green-400' : 'text-gray-500'}`}>
+                {carStatus.isMoving ? 'Yes' : 'No'}
+              </span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-400">Hit</span>
+              <span className={`font-bold ${carStatus.hit ? 'text-red-400' : 'text-gray-500'}`}>
+                {carStatus.hit ? carStatus.hitStrength : 'None'}
+              </span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-400">Orientation</span>
+              <span className={`font-bold capitalize ${carStatus.orientation === 'upright' ? 'text-green-400' : 'text-orange-400'}`}>
+                {carStatus.orientation}
+              </span>
+            </div>
+          </div>
       </div>
     </div>
   );
