@@ -1,9 +1,9 @@
-'use client';
+﻿'use client';
 import React, { useEffect, useRef, useState } from 'react';
-import { useWebSocket } from '@/app/hooks/useWebSocket';
 
 interface ControlsIndicatorProps {
   player?: 1 | 2;
+  sendCommand: (cmd: string) => void;
 }
 
 const directionMap: Record<string, string> = {
@@ -13,9 +13,8 @@ const directionMap: Record<string, string> = {
   'D': 'RIGHT', '\u2192': 'RIGHT',
 };
 
-const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({ player = 1 }) => {
+const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({ player = 1, sendCommand }) => {
   const isPlayer2 = player === 2;
-  const { sendCommand } = useWebSocket();
 
   const keys = isPlayer2
     ? { up: '\u2191', left: '\u2190', down: '\u2193', right: '\u2192' }
@@ -48,13 +47,11 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({ player = 1 }) => 
       const mapped = keyMap[e.key as keyof typeof keyMap];
       if (!mapped) return;
       e.preventDefault();
-      // Always take the latest key, replacing any currently active one
       press(mapped);
     };
     const handleKeyUp = (e: KeyboardEvent) => {
       const mapped = keyMap[e.key as keyof typeof keyMap];
       if (!mapped) return;
-      // Only stop if this key was the active one
       if (activeRef.current === mapped) release();
     };
     window.addEventListener('keydown', handleKeyDown);
