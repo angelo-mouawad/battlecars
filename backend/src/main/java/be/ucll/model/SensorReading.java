@@ -19,7 +19,6 @@ public class SensorReading {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Fixed columns — always queryable
     @Column(name = "car_id", nullable = false)
     private Integer carId;
 
@@ -34,9 +33,7 @@ public class SensorReading {
     private Long matchId;
 
     // All sensor fields stored as native PostgreSQL jsonb.
-    // jsonb = binary JSON — faster queries, validated on insert, no casting needed.
-    // New ESP32 fields flow in automatically without any schema changes.
-    // e.g. {"isMoving":true,"speed":"fast","hit":false,"hitStrength":"none","orientation":"forward"}
+    // New ESP32 fields flow in automatically without schema changes.
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "data", columnDefinition = "jsonb")
     private String data;
@@ -66,9 +63,9 @@ public class SensorReading {
     public LocalDateTime getTimestamp() { return timestamp; }
     public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
 
-    public String getData() { return data; }
-    public void setData(String data) { this.data = data; }
-
     public Long getMatchId() { return matchId; }
     public void setMatchId(Long matchId) { this.matchId = matchId; }
+
+    public String getData() { return data; }
+    public void setData(String data) { this.data = data; }
 }

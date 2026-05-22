@@ -1,6 +1,5 @@
 package be.ucll.controller;
 
-import be.ucll.model.Match;
 import be.ucll.service.GameService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,64 +18,62 @@ public class MatchController {
     }
 
     // POST /api/matches
-    // Called from lobby when both players click Play
+    // Called from lobby (or play page) when both players are ready
     // Body: { "player1Id": 1, "car1Id": 1, "player2Id": 2, "car2Id": 2 }
-    // Returns the created match (status: WAITING)
+    // Returns: { matchId, status, player1: {...}, player2: {...} }
     @PostMapping
-    public ResponseEntity<Match> createMatch(@RequestBody Map<String, Integer> body) {
-        Match match = gameService.createMatch(
+    public ResponseEntity<Map<String, Object>> createMatch(@RequestBody Map<String, Integer> body) {
+        Map<String, Object> result = gameService.createMatch(
                 body.get("player1Id").longValue(),
                 body.get("car1Id"),
                 body.get("player2Id").longValue(),
                 body.get("car2Id")
         );
-        return ResponseEntity.ok(match);
+        return ResponseEntity.ok(result);
     }
 
     // POST /api/matches/{id}/start
-    // Called right after create — moves WAITING → ACTIVE
+    // Moves the match from WAITING → ACTIVE
+    // Frontend calls this right after createMatch
     @PostMapping("/{id}/start")
-    public ResponseEntity<Match> startMatch(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> startMatch(@PathVariable Long id) {
         return ResponseEntity.ok(gameService.startMatch(id));
     }
 
     // GET /api/matches/{id}
-    // Returns full match state: status, both players, health, winner
+    // Returns full match state: status, both players with health, winner if finished
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getMatchState(@PathVariable Long id) {
         return ResponseEntity.ok(gameService.getMatchState(id));
     }
 
     // GET /api/matches/active
-    // Returns the currently ACTIVE match, or 404 if none
-    // Frontend calls this on play page load to recover after a refresh
+    // Returns the currently ACTIVE match, or 404 if none running
+    // Frontend calls this on play page load to recover after a browser refresh
     @GetMapping("/active")
     public ResponseEntity<Map<String, Object>> getActiveMatch() {
         Map<String, Object> active = gameService.getActiveMatch();
-        if (active == null) {
-            return ResponseEntity.notFound().build();
-        }
+        if (active == null) return ResponseEntity.notFound().build();
         return ResponseEntity.ok(active);
     }
 
     // POST /api/matches/{id}/hit
-    // Called by WebSocketHandler internally — or directly for testing
+    // Applies damage to a car — used for testing without the ESP32
+    // The WebSocket handler calls gameService.processHit() directly in production
     // Body: { "carId": 1, "damage": 10 }
-    // Returns updated health of both cars + matchOver flag
     @PostMapping("/{id}/hit")
     public ResponseEntity<Map<String, Object>> processHit(
             @PathVariable Long id,
             @RequestBody Map<String, Integer> body) {
-        int damage = body.getOrDefault("damage", 10); // default 10 if not provided
-        Map<String, Object> result = gameService.processHit(id, body.get("carId"), damage);
-        return ResponseEntity.ok(result);
+        int damage = body.getOrDefault("damage", 10);
+        return ResponseEntity.ok(gameService.processHit(id, body.get("carId"), damage));
     }
 
     // POST /api/matches/{id}/end
-    // Force-end a match — used if something goes wrong or a player rage-quits
+    // Force-end a match — used if a player quits or something goes wrong
     // Body: { "winnerPlayerId": 1 }
     @PostMapping("/{id}/end")
-    public ResponseEntity<Match> endMatch(
+    public ResponseEntity<Map<String, Object>> endMatch(
             @PathVariable Long id,
             @RequestBody Map<String, Long> body) {
         return ResponseEntity.ok(gameService.endMatch(id, body.get("winnerPlayerId")));
@@ -90,14 +87,14 @@ public class MatchController {
     }
 
     // GET /api/matches/player/{playerId}
-    // Match history for a specific player
+    // All finished matches for a specific player — used for per-player history
     @GetMapping("/player/{playerId}")
     public ResponseEntity<List<Map<String, Object>>> getPlayerHistory(@PathVariable Long playerId) {
         return ResponseEntity.ok(gameService.getMatchHistoryByPlayer(playerId));
     }
 
     // GET /api/matches/h2h?player1=1&player2=2
-    // Head-to-head history between two specific players
+    // All finished matches between two specific players
     @GetMapping("/h2h")
     public ResponseEntity<List<Map<String, Object>>> getHeadToHead(
             @RequestParam Long player1,

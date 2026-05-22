@@ -20,7 +20,6 @@ public class MatchPlayer {
     @JoinColumn(name = "player_id", nullable = false)
     private Player player;
 
-    // Which physical car this player is driving (1 or 2)
     @Column(name = "car_id", nullable = false)
     private Integer carId;
 
@@ -28,7 +27,7 @@ public class MatchPlayer {
     private Integer health = MAX_HEALTH;
 
     @Column(name = "score")
-    private Integer score;
+    private Integer score = 0;
 
     public MatchPlayer() {}
 

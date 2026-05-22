@@ -31,8 +31,8 @@ public class BattleCarsWebSocketHandler extends TextWebSocketHandler {
     private WebSocketSession espSession = null;
     private final List<WebSocketSession> browserSessions = new ArrayList<>();
 
-    // The active match ID — set when frontend starts a match, cleared when it ends
-    // Stored here so the WebSocket handler knows which match to apply hits to
+    // Set by the browser when a match starts: "MATCH_START:{matchId}"
+    // Cleared when the match ends or browser sends "MATCH_END"
     private Long activeMatchId = null;
 
     @Override
@@ -52,10 +52,12 @@ public class BattleCarsWebSocketHandler extends TextWebSocketHandler {
         String payload = message.getPayload();
 
         if (session == espSession) {
-            // --- Message from ESP32 ---
+            // ----------------------------------------------------------------
+            // Message from ESP32
+            // ----------------------------------------------------------------
             System.out.println("Received from ESP32: " + payload);
 
-            // Save sensor reading to DB (tagged with match_id if one is active)
+            // Save to DB — tag with match_id if a match is running
             try {
                 if (activeMatchId != null) {
                     sensorService.saveFromJsonWithMatch(payload, activeMatchId);
@@ -75,11 +77,11 @@ public class BattleCarsWebSocketHandler extends TextWebSocketHandler {
                     if (isHit) {
                         Integer carId = node.has("carId") ? node.get("carId").asInt() : null;
 
-                        // Determine damage — default 10, expandable later for hitStrength
+                        // Determine damage from hitStrength — default 10
+                        // light = 5, medium = 10, hard = 15
                         int damage = 10;
                         if (node.has("hitStrength")) {
-                            String strength = node.get("hitStrength").asText();
-                            damage = switch (strength) {
+                            damage = switch (node.get("hitStrength").asText()) {
                                 case "light"  -> 5;
                                 case "medium" -> 10;
                                 case "hard"   -> 15;
@@ -90,13 +92,10 @@ public class BattleCarsWebSocketHandler extends TextWebSocketHandler {
                         if (carId != null) {
                             Map<String, Object> hitResult = gameService.processHit(activeMatchId, carId, damage);
 
-                            // Broadcast hit result to all browsers so frontend can update HP bars
-                            String hitMessage = objectMapper.writeValueAsString(
-                                    Map.of("type", "HIT_RESULT", "data", hitResult)
-                            );
-                            broadcastToBrowsers(hitMessage);
+                            // Broadcast HIT_RESULT to all browsers so they can update HP bars
+                            broadcastToBrowsers(objectMapper.writeValueAsString(hitResult));
 
-                            // If match is over, clear the active match ID
+                            // If the match is over, clear the active match ID
                             if (Boolean.TRUE.equals(hitResult.get("matchOver"))) {
                                 System.out.println("Match " + activeMatchId + " ended. Winner: " + hitResult.get("winnerName"));
                                 activeMatchId = null;
@@ -108,27 +107,31 @@ public class BattleCarsWebSocketHandler extends TextWebSocketHandler {
                 }
             }
 
-            // Always forward raw ESP32 data to all browsers (for movement, speed, etc.)
+            // Always forward the raw ESP32 payload to all browsers
+            // (browsers use this for movement, speed, orientation display)
             broadcastToBrowsers(payload);
 
         } else {
-            // --- Message from browser ---
+            // ----------------------------------------------------------------
+            // Message from browser
+            // ----------------------------------------------------------------
             System.out.println("Received from browser: " + payload);
 
-            // Check if browser is sending a match control message
-            // Format: MATCH_START:{matchId} or MATCH_END
             if (payload.startsWith("MATCH_START:")) {
+                // Browser is telling us which match just started
                 try {
-                    activeMatchId = Long.parseLong(payload.split(":")[1]);
+                    activeMatchId = Long.parseLong(payload.split(":")[1].trim());
                     System.out.println("Active match set to: " + activeMatchId);
                 } catch (Exception e) {
-                    System.out.println("Could not parse match ID: " + e.getMessage());
+                    System.out.println("Could not parse match ID from: " + payload);
                 }
             } else if (payload.equals("MATCH_END")) {
+                // Browser is forcing the match to end (e.g. player quit)
                 activeMatchId = null;
-                System.out.println("Active match cleared");
+                System.out.println("Active match cleared by browser");
             } else {
-                // Regular control command (e.g. "1:UP") — forward to ESP32
+                // Regular movement command — forward to ESP32
+                // Format: "1:UP", "1:LEFT", "2:DOWN", etc.
                 if (espSession != null && espSession.isOpen()) {
                     espSession.sendMessage(new TextMessage(payload));
                 }

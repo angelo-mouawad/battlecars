@@ -11,8 +11,8 @@ public class Match {
 
     public enum Status {
         WAITING,
-        ACTIVE,   
-        FINISHED   
+        ACTIVE,
+        FINISHED
     }
 
     @Id
@@ -33,7 +33,6 @@ public class Match {
     @JoinColumn(name = "winner_id")
     private Player winner;
 
-    // The 2 participants each MatchPlayer holds car_id, health, score
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<MatchPlayer> players = new ArrayList<>();
 
@@ -43,8 +42,6 @@ public class Match {
         this.status = status;
         this.startedAt = LocalDateTime.now();
     }
-
-    // --- Getters & Setters ---
 
     public Long getId() { return id; }
 
