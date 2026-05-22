@@ -4,6 +4,7 @@ import { useWebSocket } from '@/app/hooks/useWebSocket';
 
 interface ControlsIndicatorProps {
   player?: 1 | 2;
+  sendCommand: (cmd: string) => void;
 }
 
 interface CarStatus {
