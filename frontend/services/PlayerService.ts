@@ -1,6 +1,6 @@
 import { Player } from "../types/types";
 
-const BASE = "";
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 const getAllPlayers = async (): Promise<Player[]> => {
   const response = await fetch(BASE + "/api/players");
