@@ -1,5 +1,5 @@
-﻿'use client';
-import React, { useEffect, useState } from 'react';
+'use client';
+import React, { useEffect, useRef, useState } from 'react';
 import { useWebSocket } from '@/app/hooks/useWebSocket';
 
 interface ControlsIndicatorProps {
@@ -26,21 +26,37 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({ player = 1 }) => 
     : { w: 'W', a: 'A', s: 'S', d: 'D' };
 
   const [active, setActive] = useState<string | null>(null);
+  const activeRef = useRef<string | null>(null);
 
-  function sendKey(player: 1 | 2, label: string) {
+  const press = (label: string) => {
     const direction = directionMap[label];
     if (!direction) return;
+    activeRef.current = label;
+    setActive(label);
     sendCommand(`${player}:${direction}`);
-  }
+  };
+
+  const release = () => {
+    if (activeRef.current === null) return;
+    activeRef.current = null;
+    setActive(null);
+    sendCommand(`${player}:STOP`);
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const mapped = keyMap[e.key as keyof typeof keyMap];
       if (!mapped) return;
-      setActive(mapped);
-      sendKey(player, mapped);
+      e.preventDefault();
+      // Always take the latest key, replacing any currently active one
+      press(mapped);
     };
-    const handleKeyUp = () => setActive(null);
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const mapped = keyMap[e.key as keyof typeof keyMap];
+      if (!mapped) return;
+      // Only stop if this key was the active one
+      if (activeRef.current === mapped) release();
+    };
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     return () => {
@@ -54,7 +70,11 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({ player = 1 }) => 
     const cls = isPressed ? 'bg-blue-500 scale-95' : 'bg-gray-700 hover:bg-gray-600';
     return (
       <div
-        onClick={() => sendKey(player, label)}
+        onMouseDown={() => press(label)}
+        onMouseUp={() => { if (activeRef.current === label) release(); }}
+        onMouseLeave={() => { if (activeRef.current === label) release(); }}
+        onTouchStart={e => { e.preventDefault(); press(label); }}
+        onTouchEnd={() => { if (activeRef.current === label) release(); }}
         className={'w-8 h-8 flex items-center justify-center rounded text-sm font-bold cursor-pointer select-none transition-all ' + cls}
       >
         {label}

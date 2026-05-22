@@ -38,4 +38,10 @@ public class PlayerService {
         player.setScore(player.getScore() + points);
         return repository.save(player);
     }
+
+    public void deletePlayer(Long id) {
+        Player player = repository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Player not found: " + id));
+        repository.delete(player);
+    }
 }

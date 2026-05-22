@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -16,9 +16,11 @@ export default function Home() {
   }, []);
 
   return (
-    <>
-      <Lobby />
+    <div className="h-screen flex flex-col">
+      <div className="flex-1 overflow-auto">
+        <Lobby />
+      </div>
       <Footer />
-    </>
+    </div>
   );
 }
