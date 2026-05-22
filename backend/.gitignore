@@ -4,3 +4,10 @@ target/
 application-local.properties
 *.log
 .DS_Store
+
+gamerService.txt
+match.txt
+matchController.txt
+matchPlayer.txt
+matchPlayerrepo.txt
+matchRepo.txt

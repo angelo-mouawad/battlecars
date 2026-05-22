@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+const crypto = require('crypto');
 
 export function proxy(request: NextRequest) {
  const isDev = process.env.NODE_ENV === 'development';
-  const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
+  const nonce = crypto.randomBytes(16).toString('base64');
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   const wsUrl = process.env.NEXT_PUBLIC_WS_URL;
   let cspHeader = '';
@@ -19,7 +20,7 @@ export function proxy(request: NextRequest) {
       base-uri 'self';
       form-action 'self';
       frame-ancestors 'none';
-      connect-src 'self' http://localhost:8080 ws://localhost:3000;
+      connect-src 'self' http://localhost:8080 ws://localhost:3000 ws://localhost:8080;
     `.replace(/\s{2,}/g, ' ').trim();
   } else {
     cspHeader = `
