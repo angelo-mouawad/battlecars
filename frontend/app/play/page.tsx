@@ -155,7 +155,9 @@ export default function PlayPage() {
     initMatch();
 
     return () => {
-      ws.current?.send('MATCH_END');
+      if (ws.current?.readyState === WebSocket.OPEN) {
+        ws.current.send('MATCH_END');
+      }
       ws.current?.close();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
