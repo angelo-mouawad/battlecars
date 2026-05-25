@@ -155,9 +155,6 @@ export default function PlayPage() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // -------------------------------------------------------------------------
-  // Winner screen overlay — shown when match ends
-  // -------------------------------------------------------------------------
   if (winner) {
     const winnerIsPlayer1 = winner.carId === 1;
     return (

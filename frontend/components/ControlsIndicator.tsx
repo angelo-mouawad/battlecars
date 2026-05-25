@@ -4,7 +4,7 @@ import { useWebSocket } from '@/app/hooks/useWebSocket';
 
 interface ControlsIndicatorProps {
   player?: 1 | 2;
-  sendCommand: (cmd: string) => void;
+  sendCommand?: (cmd: string) => void;
 }
 
 interface CarStatus {
@@ -59,7 +59,8 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = (props) => {
     }
   }, []);
 
-  const { sendCommand } = useWebSocket(handleMessage);
+  const { sendCommand: wsSendCommand } = useWebSocket(handleMessage);
+  const sendCommand = props.sendCommand ?? wsSendCommand;
 
   const press = (label: string) => {
     const direction = directionMap[label];
