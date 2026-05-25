@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+const crypto = require('crypto');
 
 const PROTECTED = ['/', '/play', '/manage', '/leaderboard'];
 
