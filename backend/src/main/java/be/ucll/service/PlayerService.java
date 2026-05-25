@@ -2,6 +2,7 @@ package be.ucll.service;
 
 import java.util.List;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import be.ucll.model.Player;
@@ -11,9 +12,11 @@ import be.ucll.repository.PlayerRepository;
 public class PlayerService {
 
     private final PlayerRepository repository;
+    private final PasswordEncoder passwordEncoder;
 
-    public PlayerService(PlayerRepository repository) {
+    public PlayerService(PlayerRepository repository, PasswordEncoder passwordEncoder) {
         this.repository = repository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public List<Player> getAll() {
@@ -21,15 +24,21 @@ public class PlayerService {
     }
 
     public Player createPlayer(String name, String password) {
-        Player player = new Player(name, password);
+        Player player = new Player(name, passwordEncoder.encode(password));
         return repository.save(player);
     }
 
     public Player changePassword(String name, String newPassword) {
         Player player = repository.findByName(name)
                 .orElseThrow(() -> new IllegalArgumentException("Player not found: " + name));
-        player.setPassword(newPassword);
+        player.setPassword(passwordEncoder.encode(newPassword));
         return repository.save(player);
+    }
+
+    public boolean verifyPassword(String name, String rawPassword) {
+        Player player = repository.findByName(name)
+                .orElseThrow(() -> new IllegalArgumentException("Player not found: " + name));
+        return passwordEncoder.matches(rawPassword, player.getPassword());
     }
 
     public Player addPoints(String name, int points) {

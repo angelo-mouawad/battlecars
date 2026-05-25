@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -8,15 +8,28 @@ export default function LoginForm() {
   const router = useRouter();
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== process.env.NEXT_PUBLIC_APP_PASSWORD) {
-      setError('Incorrect password');
-      return;
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      if (!res.ok) {
+        setError('Incorrect password');
+        return;
+      }
+      router.push('/');
+    } catch {
+      setError('Could not reach the server');
+    } finally {
+      setLoading(false);
     }
-    document.cookie = 'isAdmin=true; path=/; SameSite=Strict';
-    router.push('/');
   };
 
   return (
@@ -27,9 +40,10 @@ export default function LoginForm() {
         {error && <p className="text-red-400 text-xs font-bold tracking-wide">{error}</p>}
         <button
           type="submit"
-          className="bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest text-sm py-2 rounded-md transition-colors"
+          disabled={loading}
+          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-black uppercase tracking-widest text-sm py-2 rounded-md transition-colors"
         >
-          Sign In
+          {loading ? 'Signing in...' : 'Sign In'}
         </button>
       </form>
     </div>

@@ -49,6 +49,15 @@ const deletePlayer = async (id: number): Promise<void> => {
   if (!response.ok) throw new Error("Failed to delete player");
 };
 
+const login = async (name: string, password: string): Promise<boolean> => {
+  const response = await fetch(BASE + "/api/players/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, password }),
+  });
+  return response.ok;
+};
+
 export default {
   getAllPlayers,
   getPlayerById,
@@ -56,4 +65,5 @@ export default {
   changePassword,
   addPoints,
   deletePlayer,
+  login,
 };

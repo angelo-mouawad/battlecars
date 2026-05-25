@@ -39,14 +39,19 @@ export default function Lobby() {
     else setSlot2(prev => ({ ...prev, ...patch }));
   };
 
-  const confirmPassword = (n: 1 | 2, slot: SlotState) => {
+  const confirmPassword = async (n: 1 | 2, slot: SlotState) => {
     const player = playerList.find(p => String(p.id) === slot.selectedId);
     if (!player) return;
-    if (slot.password !== player.password) {
-      updateSlot(n, { error: 'Wrong password' });
-      return;
+    try {
+      const ok = await PlayerService.login(player.name, slot.password);
+      if (!ok) {
+        updateSlot(n, { error: 'Wrong password' });
+        return;
+      }
+      updateSlot(n, { confirmed: true, error: '' });
+    } catch {
+      updateSlot(n, { error: 'Could not reach the server' });
     }
-    updateSlot(n, { confirmed: true, error: '' });
   };
 
   const createPlayer = async (n: 1 | 2, slot: SlotState) => {

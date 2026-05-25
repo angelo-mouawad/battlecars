@@ -44,7 +44,7 @@ export default function ManagePage() {
   const handleChangePassword = async () => {
     const { player, oldPassword, newPassword, confirmPassword } = modal;
     if (!player) return;
-    if (oldPassword !== player.password) {
+    if (!(await PlayerService.login(player.name, oldPassword))) {
       setModal(prev => ({ ...prev, error: 'Old password is incorrect' }));
       return;
     }
@@ -70,7 +70,7 @@ export default function ManagePage() {
   const handleDelete = async () => {
     const { player, deletePassword } = modal;
     if (!player) return;
-    if (deletePassword !== player.password) {
+    if (!(await PlayerService.login(player.name, deletePassword))) {
       setModal(prev => ({ ...prev, error: 'Wrong password' }));
       return;
     }

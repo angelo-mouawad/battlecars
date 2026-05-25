@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -6,8 +6,8 @@ export default function Footer() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const handleLogout = () => {
-    document.cookie = 'isAdmin=false; path=/; SameSite=Strict';
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
   };
 
