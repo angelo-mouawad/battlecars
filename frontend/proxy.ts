@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-const crypto = require('crypto');
 
 const PROTECTED = ['/', '/play', '/manage', '/leaderboard'];
 
@@ -42,7 +41,7 @@ export async function proxy(request: NextRequest) {
   }
 
   const isDev = process.env.NODE_ENV === 'development';
-  const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
+  const nonce = btoa(crypto.randomUUID());
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   const wsUrl = process.env.NEXT_PUBLIC_WS_URL;
 
