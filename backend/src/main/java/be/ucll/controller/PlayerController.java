@@ -3,6 +3,7 @@ package be.ucll.controller;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,8 +33,13 @@ public class PlayerController {
         return ResponseEntity.ok(playerService.getAll());
     }
 
-    // POST /api/players
-    // Body: { "name": "...", "password": "..." }
+    @PostMapping("/login")
+    public ResponseEntity<Void> login(@RequestBody Map<String, String> body) {
+        boolean ok = playerService.verifyPassword(body.get("name"), body.get("password"));
+        return ok ? ResponseEntity.ok().build()
+                  : ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
     @PostMapping
     public ResponseEntity<Player> createPlayer(@RequestBody Map<String, String> body) {
         Player created = playerService.createPlayer(body.get("name"), body.get("password"));

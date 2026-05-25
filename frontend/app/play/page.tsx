@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import ControlsIndicator from '@/components/ControlsIndicator';
 import Field from '@/components/Field';
 import Footer from '@/components/Footer';
@@ -24,7 +24,6 @@ interface HitResult {
 }
 
 export default function PlayPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   // Player info from URL — set by Lobby
@@ -92,13 +91,6 @@ export default function PlayPage() {
   // -------------------------------------------------------------------------
   // On mount: auth check → create match → start match → tell WS → game ready
   // -------------------------------------------------------------------------
-  useEffect(() => {
-    // Auth guard
-    const isAdmin = document.cookie.split('; ').find(c => c.startsWith('isAdmin='))?.split('=')[1];
-    if (isAdmin !== 'true') {
-      router.push('/login');
-      return;
-    }
 
     // Need both player IDs from URL
     if (!player1Id || !player2Id) {
