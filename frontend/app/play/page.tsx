@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import ControlsIndicator from '@/components/ControlsIndicator';
 import Field from '@/components/Field';
 import Footer from '@/components/Footer';
@@ -32,10 +32,11 @@ export default function PlayPage() {
   const player1Name = searchParams.get('p1name') ?? 'Player 1';
   const player2Name = searchParams.get('p2name') ?? 'Player 2';
 
+  const router = useRouter();
+
   // Game state
   const [health1, setHealth1] = useState(MAX_HEALTH);
   const [health2, setHealth2] = useState(MAX_HEALTH);
-  const [matchId, setMatchId] = useState<number | null>(null);
   const [winner, setWinner] = useState<{ name: string; carId: number } | null>(null);
   const [gameReady, setGameReady] = useState(false);
 
@@ -92,6 +93,7 @@ export default function PlayPage() {
   // On mount: auth check → create match → start match → tell WS → game ready
   // -------------------------------------------------------------------------
 
+  useEffect(() => {
     // Need both player IDs from URL
     if (!player1Id || !player2Id) {
       router.push('/');
@@ -123,7 +125,6 @@ export default function PlayPage() {
         await fetch(`${API_URL}/api/matches/${newMatchId}/start`, { method: 'POST' });
 
         // Step 3: store match ID and tell the WebSocket handler
-        setMatchId(newMatchId);
         matchIdRef.current = newMatchId;
 
         // WS might not be open yet — wait for it

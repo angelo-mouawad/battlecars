@@ -29,7 +29,7 @@ export default async function RootLayout({
   const listHeaders = await headers();
   const nonce = listHeaders.get('x-nonce') ?? undefined;
   return (
-    <html lang="en">
+    <html lang="en" nonce={nonce}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
