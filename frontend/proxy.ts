@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 const PROTECTED = ['/', '/play', '/manage', '/leaderboard'];
 
 async function isValidSession(cookieValue: string | undefined): Promise<boolean> {
-  const secret = process.env.ADMIN_SESSION_SECRET;
+  const secret = process.env.NEXT_PUBLIC_APP_PASSWORD;
   if (!secret || !cookieValue) return false;
   try {
     const encoder = new TextEncoder();

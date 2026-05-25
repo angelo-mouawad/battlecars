@@ -4,7 +4,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 export async function POST(request: Request) {
   const { password } = await request.json();
 
-  const adminPassword = process.env.ADMIN_PASSWORD;
+  const adminPassword = process.env.NEXT_PUBLIC_APP_PASSWORD;
   if (!adminPassword) {
     return NextResponse.json({ error: 'Server not configured' }, { status: 500 });
   }
@@ -23,12 +23,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
   }
 
-  const secret = process.env.ADMIN_SESSION_SECRET;
-  if (!secret) {
-    return NextResponse.json({ error: 'Server not configured' }, { status: 500 });
-  }
-
-  const token = createHmac('sha256', secret).update('admin_session').digest('hex');
+  const token = createHmac('sha256', adminPassword).update('admin_session').digest('hex');
 
   const response = NextResponse.json({ ok: true });
   response.cookies.set('session', token, {
