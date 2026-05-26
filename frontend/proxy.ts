@@ -55,7 +55,7 @@ export async function proxy(request: NextRequest) {
       base-uri 'self';
       form-action 'self';
       frame-ancestors 'none';
-      connect-src 'self' http://localhost:8080 ws://localhost:3000;
+      connect-src 'self' http://localhost:8080 ws://localhost:3000 ws://localhost:8080;
     `.replace(/\s{2,}/g, ' ').trim()
   : `
       default-src 'self';
