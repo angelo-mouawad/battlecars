@@ -164,12 +164,20 @@ export default function PlayPage() {
 
     initMatch();
 
-    return () => {
-      if (ws.current?.readyState === WebSocket.OPEN) {
-        ws.current.send('MATCH_END');
-      }
-      ws.current?.close();
-    };
+  return () => {
+    if (matchIdRef.current) {
+      // Fire and forget — mark the match as abandoned in the DB
+      fetch(`${API_URL}/api/matches/${matchIdRef.current}/end`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ winnerPlayerId: player2Id }),
+      }).catch(() => {});
+    }
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      ws.current.send('MATCH_END');
+    }
+    ws.current?.close();
+  };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (winner) {
@@ -192,13 +200,13 @@ export default function PlayPage() {
 
         <div className="flex gap-4">
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.replace('/')}
             className="px-8 py-3 rounded-md font-black uppercase tracking-widest text-sm bg-blue-600 hover:bg-blue-500 text-white transition-colors"
           >
             Play Again
           </button>
           <button
-            onClick={() => router.push('/leaderboard')}
+            onClick={() => router.replace('/leaderboard')}
             className="px-8 py-3 rounded-md font-black uppercase tracking-widest text-sm bg-[#1e3d6b] hover:bg-[#2a5090] text-white transition-colors"
           >
             Leaderboard

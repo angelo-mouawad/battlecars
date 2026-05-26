@@ -156,7 +156,7 @@ export default function Lobby() {
               if (!canPlay) return;
               const p1 = playerList.find(p => String(p.id) === slot1.selectedId);
               const p2 = playerList.find(p => String(p.id) === slot2.selectedId);
-              router.push('/play?p1=' + slot1.selectedId + '&p2=' + slot2.selectedId + '&p1name=' + encodeURIComponent(p1?.name ?? 'Unknown') + '&p2name=' + encodeURIComponent(p2?.name ?? 'Unknown'));
+              router.replace('/play?p1=' + slot1.selectedId + '&p2=' + slot2.selectedId + '&p1name=' + encodeURIComponent(p1?.name ?? 'Unknown') + '&p2name=' + encodeURIComponent(p2?.name ?? 'Unknown'));
             }}
             disabled={!canPlay}
             className={'flex-1 py-3 rounded-md font-black uppercase tracking-widest text-sm transition-colors ' + (canPlay ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed')}
