@@ -109,20 +109,31 @@ public class GameServiceTest {
     }
 
     @Test
-    void createMatch_activeMatchExists_throwsIllegalState() {
+    void createMatch_activeMatchExists_closesItAndCreatesNew() {
         when(playerRepository.findById(1L)).thenReturn(Optional.of(player1));
         when(playerRepository.findById(2L)).thenReturn(Optional.of(player2));
 
         Match runningMatch = new Match(Status.ACTIVE);
         ReflectionTestUtils.setField(runningMatch, "id", 5L);
         when(matchRepository.findFirstByStatus(Status.ACTIVE)).thenReturn(Optional.of(runningMatch));
+        when(matchRepository.findFirstByStatus(Status.WAITING)).thenReturn(Optional.empty());
+        when(matchRepository.save(any(Match.class))).thenAnswer(i -> {
+            Match m = i.getArgument(0);
+            if (m.getId() == null) ReflectionTestUtils.setField(m, "id", 99L);
+            return m;
+        });
+        when(matchPlayerRepository.save(any(MatchPlayer.class))).thenAnswer(i -> i.getArgument(0));
 
-        assertThrows(IllegalStateException.class,
-                () -> gameService.createMatch(1L, 1, 2L, 2));
+        Map<String, Object> result = gameService.createMatch(1L, 1, 2L, 2);
+
+        // Old match should be closed
+        assertThat(runningMatch.getStatus()).isEqualTo(Status.FINISHED);
+        // New match should be created
+        assertThat(result.get("matchId")).isNotNull();
     }
 
     @Test
-    void createMatch_waitingMatchExists_throwsIllegalState() {
+    void createMatch_waitingMatchExists_closesItAndCreatesNew() {
         when(playerRepository.findById(1L)).thenReturn(Optional.of(player1));
         when(playerRepository.findById(2L)).thenReturn(Optional.of(player2));
 
@@ -130,9 +141,17 @@ public class GameServiceTest {
         ReflectionTestUtils.setField(waitingMatch, "id", 5L);
         when(matchRepository.findFirstByStatus(Status.ACTIVE)).thenReturn(Optional.empty());
         when(matchRepository.findFirstByStatus(Status.WAITING)).thenReturn(Optional.of(waitingMatch));
+        when(matchRepository.save(any(Match.class))).thenAnswer(i -> {
+            Match m = i.getArgument(0);
+            if (m.getId() == null) ReflectionTestUtils.setField(m, "id", 99L);
+            return m;
+        });
+        when(matchPlayerRepository.save(any(MatchPlayer.class))).thenAnswer(i -> i.getArgument(0));
 
-        assertThrows(IllegalStateException.class,
-                () -> gameService.createMatch(1L, 1, 2L, 2));
+        Map<String, Object> result = gameService.createMatch(1L, 1, 2L, 2);
+
+        assertThat(waitingMatch.getStatus()).isEqualTo(Status.FINISHED);
+        assertThat(result.get("matchId")).isNotNull();
     }
 
     @Test
