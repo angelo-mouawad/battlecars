@@ -44,12 +44,17 @@ public class GameService {
         if (car1Id.equals(car2Id))
             throw new IllegalArgumentException("Both players cannot use the same car");
 
-        // Block if a match is already running or waiting
+        // Auto-close any stuck ACTIVE or WAITING match before creating a new one
+        // This handles browser refreshes, dev mode double-mounts, and abandoned matches
         matchRepository.findFirstByStatus(Status.ACTIVE).ifPresent(m -> {
-            throw new IllegalStateException("Match " + m.getId() + " is already active. Finish it first.");
+            m.setStatus(Status.FINISHED);
+            m.setEndedAt(java.time.LocalDateTime.now());
+            matchRepository.save(m);
         });
         matchRepository.findFirstByStatus(Status.WAITING).ifPresent(m -> {
-            throw new IllegalStateException("Match " + m.getId() + " is already waiting to start. Start or cancel it first.");
+            m.setStatus(Status.FINISHED);
+            m.setEndedAt(java.time.LocalDateTime.now());
+            matchRepository.save(m);
         });
 
         Match match = new Match(Status.WAITING);
