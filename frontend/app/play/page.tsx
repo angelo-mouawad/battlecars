@@ -106,12 +106,7 @@ export default function PlayPage() {
     }
   }, []);
 
-  // -------------------------------------------------------------------------
-  // On mount: auth check → create match → start match → tell WS → game ready
-  // -------------------------------------------------------------------------
-
   useEffect(() => {
-    // Need both player IDs from URL
     if (!player1Id || !player2Id) {
       router.push('/');
       return;
@@ -119,10 +114,8 @@ export default function PlayPage() {
 
     connectWebSocket();
 
-    // Create match → start it → send MATCH_START over WS
     const initMatch = async () => {
       try {
-        // Step 1: create the match
         const createRes = await fetch(`${API_URL}/api/matches`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -157,7 +150,6 @@ export default function PlayPage() {
 
       } catch (err) {
         console.error('Could not init match:', err);
-        // Don't block the UI — still let players play even if match creation fails
         setGameReady(true);
       }
     };
@@ -166,7 +158,6 @@ export default function PlayPage() {
 
   return () => {
     if (matchIdRef.current) {
-      // Fire and forget — mark the match as abandoned in the DB
       fetch(`${API_URL}/api/matches/${matchIdRef.current}/end`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -178,7 +169,7 @@ export default function PlayPage() {
     }
     ws.current?.close();
   };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   if (winner) {
     const winnerIsPlayer1 = winner.carId === 1;
@@ -216,9 +207,6 @@ export default function PlayPage() {
     );
   }
 
-  // -------------------------------------------------------------------------
-  // Main game UI
-  // -------------------------------------------------------------------------
   return (
     <div className="h-screen flex flex-col bg-[#0d1b2e]">
       <Scoreboard
@@ -242,7 +230,6 @@ export default function PlayPage() {
         <ControlsIndicator player={2} sendCommand={sendCommand} />
       </div>
 
-      {/* Forfeit buttons — visible during active match */}
       <div className="flex justify-center gap-4 py-2 bg-[#0d1b2e]">
         <button
           onClick={() => forfeitMatch(player2Id!, player2Name, 2)}
