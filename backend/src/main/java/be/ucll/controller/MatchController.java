@@ -1,17 +1,27 @@
 package be.ucll.controller;
 
+import be.ucll.service.CommentaryService;
 import be.ucll.service.GameService;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
 
 @RestController
 @RequestMapping("/api/matches")
 public class MatchController {
 
     private final GameService gameService;
+
+    @Autowired
+    private CommentaryService commentaryService;
 
     public MatchController(GameService gameService) {
         this.gameService = gameService;
@@ -100,5 +110,20 @@ public class MatchController {
             @RequestParam Long player1,
             @RequestParam Long player2) {
         return ResponseEntity.ok(gameService.getHeadToHeadHistory(player1, player2));
+    }
+
+    @GetMapping("/test/commentary")
+    public Map<String, Object> testCommentary() throws Exception {
+        Map<String, Object> fakeHit = new HashMap<>();
+        fakeHit.put("matchOver", false);
+        fakeHit.put("damage", 15);
+        fakeHit.put("hitCarId", 1);
+
+        String result = commentaryService
+            .generateCommentary(fakeHit, "eddy", 35, "Zenin", 20)
+            .get();
+
+        return Map.of("commentary", result !=null ? result : "generation failed");    
+
     }
 }
