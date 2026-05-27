@@ -16,7 +16,9 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class CommentaryService {
 
-    @Value("${groq.api.key}")
+    // Default to empty string so the app starts even without the key configured.
+    // Commentary will silently skip if the key is missing.
+    @Value("${groq.api.key:}")
     private String groqApiKey;
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
@@ -26,6 +28,11 @@ public class CommentaryService {
     public CompletableFuture<String> generateCommentary(Map<String, Object> hitResult,
                                                          String player1Name, int car1Health,
                                                          String player2Name, int car2Health) {
+        if (groqApiKey == null || groqApiKey.isBlank()) {
+            System.out.println("Commentary skipped: GROQ_API_KEY not configured.");
+            return CompletableFuture.completedFuture(null);
+        }
+
         try {
             boolean matchOver = Boolean.TRUE.equals(hitResult.get("matchOver"));
             boolean isDraw    = Boolean.TRUE.equals(hitResult.get("draw"));
