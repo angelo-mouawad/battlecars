@@ -106,6 +106,10 @@ export default function PlayPage() {
     }
   }, []);
 
+  // -------------------------------------------------------------------------
+  // On mount: auth check → create match → start match → tell WS → game ready
+  // -------------------------------------------------------------------------
+
   useEffect(() => {
     if (!player1Id || !player2Id) {
       router.push('/');
@@ -158,6 +162,7 @@ export default function PlayPage() {
 
   return () => {
     if (matchIdRef.current) {
+      // Fire and forget — mark the match as abandoned in the DB
       fetch(`${API_URL}/api/matches/${matchIdRef.current}/end`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -169,7 +174,7 @@ export default function PlayPage() {
     }
     ws.current?.close();
   };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (winner) {
     const winnerIsPlayer1 = winner.carId === 1;
@@ -230,6 +235,7 @@ export default function PlayPage() {
         <ControlsIndicator player={2} sendCommand={sendCommand} />
       </div>
 
+      {/* Forfeit buttons — visible during active match */}
       <div className="flex justify-center gap-4 py-2 bg-[#0d1b2e]">
         <button
           onClick={() => forfeitMatch(player2Id!, player2Name, 2)}

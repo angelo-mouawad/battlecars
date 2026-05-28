@@ -97,10 +97,13 @@ public class GameService {
         //   front-front → both lose HP | side hit → only hit car loses HP
         List<MatchPlayer> allPlayers = matchPlayerRepository.findByMatchId(matchId);
 
-        for (MatchPlayer mp : allPlayers) {
-            mp.applyDamage(damage);
-            matchPlayerRepository.save(mp);
-        }
+        MatchPlayer hitCar = allPlayers.stream()
+                .filter(mp -> mp.getCarId().equals(carId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Car not found in match: " + carId));
+
+        hitCar.applyDamage(damage);
+        matchPlayerRepository.save(hitCar);
 
         Map<String, Object> result = new HashMap<>();
         result.put("type", "HIT_RESULT");

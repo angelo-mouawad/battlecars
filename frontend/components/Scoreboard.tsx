@@ -22,8 +22,8 @@ export default function Scoreboard({ player1 = "Unknown", player2 = "Unknown", h
             </span>
             <span className="text-xs text-gray-400 tracking-wider">{player1}</span>
           </div>
-          <span className="text-5xl font-black w-12 text-center leading-none">0</span>
-          <span className="text-5xl font-black w-12 text-center leading-none">0</span>
+            <span className="text-2xl font-black w-12 text-center leading-none">{health1}</span>
+            <span className="text-2xl font-black w-12 text-center leading-none">{health2}</span>
           <div className="flex flex-col items-start flex-1">
             <span className="text-base font-black uppercase tracking-widest">
               Magnitude

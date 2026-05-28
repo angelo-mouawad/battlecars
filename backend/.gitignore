@@ -4,6 +4,7 @@ target/
 application-local.properties
 *.log
 .DS_Store
+application-local-test.properties
 
 gamerService.txt
 match.txt

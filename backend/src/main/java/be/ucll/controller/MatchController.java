@@ -61,9 +61,11 @@ public class MatchController {
     // Returns the currently ACTIVE match, or 404 if none running
     // Frontend calls this on play page load to recover after a browser refresh
     @GetMapping("/active")
-    public ResponseEntity<Map<String, Object>> getActiveMatch() {
+    public ResponseEntity<?> getActiveMatch() {
         Map<String, Object> active = gameService.getActiveMatch();
-        if (active == null) return ResponseEntity.notFound().build();
+        if (active == null) {
+            return ResponseEntity.notFound().build();
+        }
         return ResponseEntity.ok(active);
     }
 
