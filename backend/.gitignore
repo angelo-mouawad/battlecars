@@ -4,8 +4,7 @@ target/
 application-local.properties
 *.log
 .DS_Store
-
-backend/src/test/resources/application-local-test.properties
+application-local-test.properties
 
 gamerService.txt
 match.txt
