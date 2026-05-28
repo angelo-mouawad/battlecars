@@ -40,6 +40,12 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Install Maven
+        run: |
+          curl -sL https://archive.apache.org/dist/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.tar.gz | tar -xz -C /opt
+          echo "/opt/apache-maven-3.9.6/bin" >> $GITHUB_PATH
 
       - name: Run backend unit tests
         env:
