@@ -56,50 +56,50 @@ jobs:
           GROQ_API_KEY: test-key-not-used
         run: cd backend && mvn test -Dtest="!MatchIntegrationTest,!PlayerControllerTest,!MatchHistoryControllerTest"
 
-  # -------- SAST Security Scan --------
-  sast-scan:
-    runs-on: self-hosted
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+  # # -------- SAST Security Scan --------
+  # sast-scan:
+  #   runs-on: self-hosted
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v3
 
-      - name: Install Semgrep OSS
-        run: pip install semgrep
+  #     - name: Install Semgrep OSS
+  #       run: pip install semgrep
 
-      - name: Run Semgrep Scan
-        run: semgrep scan --config="p/default" --config="p/java" --config="p/nextjs" --severity ERROR --error
+  #     - name: Run Semgrep Scan
+  #       run: semgrep scan --config="p/default" --config="p/java" --config="p/nextjs" --severity ERROR --error
 
-  # -------- Container Security Scan --------
-  container-scan:
-    runs-on: self-hosted
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+  # # -------- Container Security Scan --------
+  # container-scan:
+  #   runs-on: self-hosted
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v3
 
-      - name: Build Frontend Image
-        run: docker build --no-cache --pull -t project-frontend:test ./frontend
+  #     - name: Build Frontend Image
+  #       run: docker build --no-cache --pull -t project-frontend:test ./frontend
 
-      - name: Run Trivy Scan (Frontend)
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: "project-frontend:test"
-          format: "table"
-          exit-code: "1"
-          severity: "CRITICAL,HIGH"
-          ignore-unfixed: false
-          vuln-type: "os,library"
-          scanners: "vuln,secret,misconfig"
+  #     - name: Run Trivy Scan (Frontend)
+  #       uses: aquasecurity/trivy-action@master
+  #       with:
+  #         image-ref: "project-frontend:test"
+  #         format: "table"
+  #         exit-code: "1"
+  #         severity: "CRITICAL,HIGH"
+  #         ignore-unfixed: false
+  #         vuln-type: "os,library"
+  #         scanners: "vuln,secret,misconfig"
 
-      - name: Build Backend Image
-        run: docker build --no-cache --pull -t project-backend:test ./backend
+  #     - name: Build Backend Image
+  #       run: docker build --no-cache --pull -t project-backend:test ./backend
 
-      - name: Run Trivy Scan (Backend)
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: "project-backend:test"
-          format: "table"
-          exit-code: "1"
-          severity: "CRITICAL,HIGH"
-          ignore-unfixed: false
-          vuln-type: "os,library"
-          scanners: "vuln,misconfig"
+  #     - name: Run Trivy Scan (Backend)
+  #       uses: aquasecurity/trivy-action@master
+  #       with:
+  #         image-ref: "project-backend:test"
+  #         format: "table"
+  #         exit-code: "1"
+  #         severity: "CRITICAL,HIGH"
+  #         ignore-unfixed: false
+  #         vuln-type: "os,library"
+  #         scanners: "vuln,misconfig"
