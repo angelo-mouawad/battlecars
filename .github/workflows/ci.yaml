@@ -44,8 +44,10 @@ jobs:
 
       - name: Install Maven
         run: |
-          curl -sL https://archive.apache.org/dist/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.tar.gz | tar -xz -C /opt
-          echo "/opt/apache-maven-3.9.6/bin" >> $GITHUB_PATH
+          curl -sL https://archive.apache.org/dist/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.tar.gz -o /tmp/maven.tar.gz
+          mkdir -p $HOME/maven
+          tar -xz -f /tmp/maven.tar.gz -C $HOME/maven --strip-components=1
+          echo "$HOME/maven/bin" >> $GITHUB_PATH
 
       - name: Run backend unit tests
         env:
