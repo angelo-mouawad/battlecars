@@ -2,6 +2,7 @@ package be.ucll.repository;
 
 import be.ucll.model.MatchPlayer;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -18,4 +19,7 @@ public interface MatchPlayerRepository extends JpaRepository<MatchPlayer, Long> 
 
     // Find a player by which car they are driving in a given match
     Optional<MatchPlayer> findByMatchIdAndCarId(Long matchId, Integer carId);
+
+    @Query("SELECT COUNT(m) FROM Match m WHERE m.status = 'ACTIVE' OR m.status = 'WAITING'")
+    long countActiveOrWaiting();
 }

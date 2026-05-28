@@ -109,20 +109,31 @@ public class GameServiceTest {
     }
 
     @Test
-    void createMatch_activeMatchExists_throwsIllegalState() {
+    void createMatch_activeMatchExists_closesItAndCreatesNew() {
         when(playerRepository.findById(1L)).thenReturn(Optional.of(player1));
         when(playerRepository.findById(2L)).thenReturn(Optional.of(player2));
 
         Match runningMatch = new Match(Status.ACTIVE);
         ReflectionTestUtils.setField(runningMatch, "id", 5L);
         when(matchRepository.findFirstByStatus(Status.ACTIVE)).thenReturn(Optional.of(runningMatch));
+        when(matchRepository.findFirstByStatus(Status.WAITING)).thenReturn(Optional.empty());
+        when(matchRepository.save(any(Match.class))).thenAnswer(i -> {
+            Match m = i.getArgument(0);
+            if (m.getId() == null) ReflectionTestUtils.setField(m, "id", 99L);
+            return m;
+        });
+        when(matchPlayerRepository.save(any(MatchPlayer.class))).thenAnswer(i -> i.getArgument(0));
 
-        assertThrows(IllegalStateException.class,
-                () -> gameService.createMatch(1L, 1, 2L, 2));
+        Map<String, Object> result = gameService.createMatch(1L, 1, 2L, 2);
+
+        // Old match should be closed
+        assertThat(runningMatch.getStatus()).isEqualTo(Status.FINISHED);
+        // New match should be created
+        assertThat(result.get("matchId")).isNotNull();
     }
 
     @Test
-    void createMatch_waitingMatchExists_throwsIllegalState() {
+    void createMatch_waitingMatchExists_closesItAndCreatesNew() {
         when(playerRepository.findById(1L)).thenReturn(Optional.of(player1));
         when(playerRepository.findById(2L)).thenReturn(Optional.of(player2));
 
@@ -130,9 +141,17 @@ public class GameServiceTest {
         ReflectionTestUtils.setField(waitingMatch, "id", 5L);
         when(matchRepository.findFirstByStatus(Status.ACTIVE)).thenReturn(Optional.empty());
         when(matchRepository.findFirstByStatus(Status.WAITING)).thenReturn(Optional.of(waitingMatch));
+        when(matchRepository.save(any(Match.class))).thenAnswer(i -> {
+            Match m = i.getArgument(0);
+            if (m.getId() == null) ReflectionTestUtils.setField(m, "id", 99L);
+            return m;
+        });
+        when(matchPlayerRepository.save(any(MatchPlayer.class))).thenAnswer(i -> i.getArgument(0));
 
-        assertThrows(IllegalStateException.class,
-                () -> gameService.createMatch(1L, 1, 2L, 2));
+        Map<String, Object> result = gameService.createMatch(1L, 1, 2L, 2);
+
+        assertThat(waitingMatch.getStatus()).isEqualTo(Status.FINISHED);
+        assertThat(result.get("matchId")).isNotNull();
     }
 
     @Test
@@ -198,9 +217,8 @@ public class GameServiceTest {
 
         gameService.processHit(10L, 1, 10);
 
-        // Both lose 10 HP — current logic applies to both
-        assertThat(mp1.getHealth()).isEqualTo(40);
-        assertThat(mp2.getHealth()).isEqualTo(40);
+        assertThat(mp1.getHealth()).isEqualTo(40); // car 1 hit — loses 10
+        assertThat(mp2.getHealth()).isEqualTo(50); // car 2 NOT hit — unchanged
     }
 
     @Test
@@ -211,8 +229,8 @@ public class GameServiceTest {
 
         gameService.processHit(10L, 1, 5);
 
-        assertThat(mp1.getHealth()).isEqualTo(45);
-        assertThat(mp2.getHealth()).isEqualTo(45);
+        assertThat(mp1.getHealth()).isEqualTo(45); // car 1 hit
+        assertThat(mp2.getHealth()).isEqualTo(50); // car 2 unchanged
     }
 
     @Test
@@ -223,8 +241,8 @@ public class GameServiceTest {
 
         gameService.processHit(10L, 1, 15);
 
-        assertThat(mp1.getHealth()).isEqualTo(35);
-        assertThat(mp2.getHealth()).isEqualTo(35);
+        assertThat(mp1.getHealth()).isEqualTo(35); // car 1 hit
+        assertThat(mp2.getHealth()).isEqualTo(50); // car 2 unchanged
     }
 
     @Test
@@ -235,29 +253,27 @@ public class GameServiceTest {
 
         Map<String, Object> result = gameService.processHit(10L, 1, 10);
 
-        assertThat(result.get("car1Health")).isEqualTo(40);
-        assertThat(result.get("car2Health")).isEqualTo(40);
+        assertThat(result.get("car1Health")).isEqualTo(40); // car 1 hit
+        assertThat(result.get("car2Health")).isEqualTo(50); // car 2 unchanged
         assertThat(result.get("matchOver")).isEqualTo(false);
         assertThat(result.get("type")).isEqualTo("HIT_RESULT");
     }
 
     @Test
     void processHit_healthCannotGoBelowZero() {
-        // Set health low so damage would exceed it
         mp1.setHealth(5);
-        mp2.setHealth(5);
+        // mp2 stays at 50 — only car 1 gets hit
 
         when(matchRepository.findById(10L)).thenReturn(Optional.of(activeMatch));
         when(matchPlayerRepository.findByMatchId(10L)).thenReturn(List.of(mp1, mp2));
         when(matchPlayerRepository.save(any(MatchPlayer.class))).thenAnswer(i -> i.getArgument(0));
         when(matchRepository.save(any(Match.class))).thenReturn(activeMatch);
-        // Both die = draw, playerRepository.save is NOT called (no points awarded)
+        when(playerRepository.save(any(Player.class))).thenAnswer(i -> i.getArgument(0));
 
         gameService.processHit(10L, 1, 10);
 
-        // Should be clamped to 0, not negative
-        assertThat(mp1.getHealth()).isEqualTo(0);
-        assertThat(mp2.getHealth()).isEqualTo(0);
+        assertThat(mp1.getHealth()).isEqualTo(0); // clamped to 0
+        assertThat(mp2.getHealth()).isEqualTo(50); // unchanged
     }
 
     // =========================================================================
@@ -322,23 +338,21 @@ public class GameServiceTest {
     }
 
     @Test
-    void processHit_draw_matchOverWithNullWinner() {
-        // Both players have exactly 10 HP — same hit kills both
+    void processHit_hitCarDies_otherCarWins() {
         mp1.setHealth(10);
-        mp2.setHealth(10);
+        // mp2 stays at 50
 
         when(matchRepository.findById(10L)).thenReturn(Optional.of(activeMatch));
         when(matchPlayerRepository.findByMatchId(10L)).thenReturn(List.of(mp1, mp2));
         when(matchPlayerRepository.save(any(MatchPlayer.class))).thenAnswer(i -> i.getArgument(0));
         when(matchRepository.save(any(Match.class))).thenReturn(activeMatch);
+        when(playerRepository.save(any(Player.class))).thenAnswer(i -> i.getArgument(0));
 
         Map<String, Object> result = gameService.processHit(10L, 1, 10);
 
         assertThat(result.get("matchOver")).isEqualTo(true);
-        assertThat(result.get("draw")).isEqualTo(true);
-        assertThat(result.containsKey("winnerId")).isFalse();
-        // Draw = no points awarded to anyone
-        verify(playerRepository, never()).save(any(Player.class));
+        assertThat(result.containsKey("draw")).isFalse();
+        assertThat(result.get("winnerId")).isNotNull();
     }
 
     @Test

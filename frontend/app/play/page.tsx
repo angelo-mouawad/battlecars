@@ -89,6 +89,23 @@ export default function PlayPage() {
     }
   }, []);
 
+  const forfeitMatch = useCallback(async (winnerPlayerId: number, winnerName: string, winnerCarId: number) => {
+    if (!matchIdRef.current) return;
+    try {
+      await fetch(`${API_URL}/api/matches/${matchIdRef.current}/end`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ winnerPlayerId }),
+      });
+      if (ws.current?.readyState === WebSocket.OPEN) {
+        ws.current.send('MATCH_END');
+      }
+      setWinner({ name: winnerName, carId: winnerCarId });
+    } catch (err) {
+      console.error('Could not end match:', err);
+    }
+  }, []);
+
   // -------------------------------------------------------------------------
   // On mount: auth check → create match → start match → tell WS → game ready
   // -------------------------------------------------------------------------
@@ -147,12 +164,20 @@ export default function PlayPage() {
 
     initMatch();
 
-    return () => {
-      if (ws.current?.readyState === WebSocket.OPEN) {
-        ws.current.send('MATCH_END');
-      }
-      ws.current?.close();
-    };
+  return () => {
+    if (matchIdRef.current) {
+      // Fire and forget — mark the match as abandoned in the DB
+      fetch(`${API_URL}/api/matches/${matchIdRef.current}/end`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ winnerPlayerId: player2Id }),
+      }).catch(() => {});
+    }
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      ws.current.send('MATCH_END');
+    }
+    ws.current?.close();
+  };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (winner) {
@@ -175,13 +200,13 @@ export default function PlayPage() {
 
         <div className="flex gap-4">
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.replace('/')}
             className="px-8 py-3 rounded-md font-black uppercase tracking-widest text-sm bg-blue-600 hover:bg-blue-500 text-white transition-colors"
           >
             Play Again
           </button>
           <button
-            onClick={() => router.push('/leaderboard')}
+            onClick={() => router.replace('/leaderboard')}
             className="px-8 py-3 rounded-md font-black uppercase tracking-widest text-sm bg-[#1e3d6b] hover:bg-[#2a5090] text-white transition-colors"
           >
             Leaderboard
@@ -216,6 +241,23 @@ export default function PlayPage() {
         <Field />
         <ControlsIndicator player={2} sendCommand={sendCommand} />
       </div>
+
+      {/* Forfeit buttons — visible during active match */}
+      <div className="flex justify-center gap-4 py-2 bg-[#0d1b2e]">
+        <button
+          onClick={() => forfeitMatch(player2Id!, player2Name, 2)}
+          className="px-4 py-1 rounded text-xs font-black uppercase tracking-widest bg-red-900 hover:bg-red-700 text-white transition-colors"
+        >
+          {player1Name} Forfeits
+        </button>
+        <button
+          onClick={() => forfeitMatch(player1Id!, player1Name, 1)}
+          className="px-4 py-1 rounded text-xs font-black uppercase tracking-widest bg-red-900 hover:bg-red-700 text-white transition-colors"
+        >
+          {player2Name} Forfeits
+        </button>
+      </div>
+
       <Footer />
     </div>
   );
