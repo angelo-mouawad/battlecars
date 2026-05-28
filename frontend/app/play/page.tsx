@@ -111,7 +111,6 @@ export default function PlayPage() {
   // -------------------------------------------------------------------------
 
   useEffect(() => {
-    // Need both player IDs from URL
     if (!player1Id || !player2Id) {
       router.push('/');
       return;
@@ -119,10 +118,8 @@ export default function PlayPage() {
 
     connectWebSocket();
 
-    // Create match → start it → send MATCH_START over WS
     const initMatch = async () => {
       try {
-        // Step 1: create the match
         const createRes = await fetch(`${API_URL}/api/matches`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -157,7 +154,6 @@ export default function PlayPage() {
 
       } catch (err) {
         console.error('Could not init match:', err);
-        // Don't block the UI — still let players play even if match creation fails
         setGameReady(true);
       }
     };
@@ -216,9 +212,6 @@ export default function PlayPage() {
     );
   }
 
-  // -------------------------------------------------------------------------
-  // Main game UI
-  // -------------------------------------------------------------------------
   return (
     <div className="h-screen flex flex-col bg-[#0d1b2e]">
       <Scoreboard
