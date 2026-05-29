@@ -1,26 +1,18 @@
 'use client';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useWebSocket } from '@/app/hooks/useWebSocket';
 
 interface ControlsIndicatorProps {
   player?: 1 | 2;
   sendCommand?: (cmd: string) => void;
-  matchIdRef?: React.MutableRefObject<number | null>;
-  wsRef?: React.MutableRefObject<WebSocket | null>;
-  setWinner?: (winner: { name: string; carId: number } | null) => void;
-  playerId?: number | null;
-  playerName?: string;
-  opponentId?: number | null;
-  opponentName?: string;
+  // Forfeit props (from our version)
+  forfeitLabel?: string;
+  onForfeit?: () => void;
 }
 
 interface CarStatus {
   isMoving: boolean;
   hit: boolean;
-  hitStrength: string;
   orientation: string;
-  forfeitLabel?: string;
-  onForfeit?: () => void;
 }
 
 const directionMap: Record<string, string> = {
@@ -30,17 +22,8 @@ const directionMap: Record<string, string> = {
   'D': 'RIGHT', '\u2192': 'RIGHT',
 };
 
-const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({
-  player: playerProp,
-  sendCommand: sendCommandProp,
-  matchIdRef,
-  wsRef,
-  setWinner,
-  playerId,
-  opponentId,
-  opponentName
-}) => {
-  const player = playerProp ?? 1;
+const ControlsIndicator: React.FC<ControlsIndicatorProps> = (props) => {
+  const player = props.player ?? 1;
   const isPlayer2 = player === 2;
 
   const keys = isPlayer2
@@ -50,95 +33,33 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({
   const keyMap = isPlayer2
     ? { ArrowUp: '\u2191', ArrowLeft: '\u2190', ArrowDown: '\u2193', ArrowRight: '\u2192', p: 'HIT' }
     : { w: 'W', a: 'A', s: 'S', d: 'D', e: 'HIT' };
-  // Hit button handler
-  const triggerHit = () => {
-    setCarStatus(prev => ({ ...prev, hit: true, hitStrength: 'hit' }));
-    sendCommand(`${player}:HAMMER`);
-  };
-
-  // Forfeit logic
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
-  const handleForfeit = async () => {
-    if (!matchIdRef || !wsRef || !setWinner || !playerId || !opponentId || !opponentName) return;
-    const matchId = matchIdRef.current;
-    if (!matchId) return;
-    matchIdRef.current = null;
-    try {
-      await fetch(`${API_URL}/api/matches/${matchId}/end`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ winnerPlayerId: opponentId }),
-      });
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send('MATCH_END');
-      }
-      setWinner({ name: opponentName, carId: player === 1 ? 2 : 1 });
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('Could not end match:', err);
-    }
-  };
 
   const [active, setActive] = useState<Set<string>>(new Set());
   const [hitActive, setHitActive] = useState(false);
   const [carStatus, setCarStatus] = useState<CarStatus>({
     isMoving: false,
     hit: false,
-    hitStrength: 'none',
     orientation: 'upright',
   });
 
-  // Track if orientation has flipped
-  useEffect(() => {
-    if (carStatus.orientation === 'upright') return;
-    if (carStatus.orientation !== 'flipped') {
-      setCarStatus(prev => ({ ...prev, orientation: 'flipped' }));
-    }
-  }, [carStatus.orientation]);
+  const sendCommand = props.sendCommand ?? (() => {});
 
-  // Show 'Hit' for 3 seconds, then revert to 'Not Hit'
+  // Show 'Hit' for 3 seconds then revert
   useEffect(() => {
     if (carStatus.hit) {
       const timer = setTimeout(() => {
-        setCarStatus(prev => ({ ...prev, hit: false, hitStrength: 'none' }));
+        setCarStatus(prev => ({ ...prev, hit: false }));
       }, 3000);
       return () => clearTimeout(timer);
     }
   }, [carStatus.hit]);
 
-  const handleMessage = useCallback((data: string) => {
-    try {
-      const parsed = JSON.parse(data);
-      if (
-        'isMoving' in parsed ||
-        'hit' in parsed ||
-        'orientation' in parsed
-      ) {
-        setCarStatus(prev => {
-          let orientation = prev.orientation;
-          if (parsed.orientation !== undefined) {
-            if (parsed.orientation === 'upright') {
-              orientation = 'upright';
-            } else if (parsed.orientation !== 'upright') {
-              orientation = 'flipped';
-            }
-          }
-          return {
-            isMoving: parsed.isMoving ?? false,
-            hit: parsed.hit ?? false,
-            hitStrength: parsed.hitStrength ?? 'none',
-            orientation,
-          };
-        });
-      }
-    } catch {
-    }
-  }, []);
+  const triggerHit = useCallback(() => {
+    setCarStatus(prev => ({ ...prev, hit: true }));
+    sendCommand(`${player}:HAMMER`);
+  }, [player, sendCommand]);
 
-  const { sendCommand: wsSendCommand } = useWebSocket(handleMessage);
-  const sendCommand = sendCommandProp ?? wsSendCommand;
-
-  const press = (label: string) => {
+  const press = useCallback((label: string) => {
     if (label === 'HIT') {
       setHitActive(true);
       triggerHit();
@@ -146,26 +67,15 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({
     }
     const direction = directionMap[label];
     if (!direction) return;
-    setActive(prev => {
-      const next = new Set(prev);
-      next.add(label);
-      return next;
-    });
+    setActive(prev => { const next = new Set(prev); next.add(label); return next; });
     sendCommand(`${player}:${direction}`);
     setCarStatus(prev => ({ ...prev, isMoving: true }));
-  };
+  }, [player, sendCommand, triggerHit]);
 
-  const release = (label?: string) => {
-    if (label === 'HIT') {
-      setHitActive(false);
-      return;
-    }
+  const release = useCallback((label?: string) => {
+    if (label === 'HIT') { setHitActive(false); return; }
     if (!label) return;
-    setActive(prev => {
-      const next = new Set(prev);
-      next.delete(label);
-      return next;
-    });
+    setActive(prev => { const next = new Set(prev); next.delete(label); return next; });
     setTimeout(() => {
       setActive(prev => {
         if (prev.size === 0) {
@@ -175,14 +85,33 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({
         return prev;
       });
     }, 0);
-  };
+  }, [player, sendCommand]);
+
+  // Update car status from ESP32 WS messages broadcast to browser
+  // page.tsx passes raw ESP32 data via a custom event so ControlsIndicator
+  // can update without its own WS connection
+  useEffect(() => {
+    const handler = (e: CustomEvent) => {
+      const parsed = e.detail;
+      if (!parsed || typeof parsed !== 'object') return;
+      // Only update the panel for the right car
+      if (parsed.carId !== undefined && parsed.carId !== player) return;
+      setCarStatus(prev => ({
+        isMoving: parsed.isMoving ?? prev.isMoving,
+        hit: parsed.hit ?? prev.hit,
+        orientation: parsed.orientation ?? prev.orientation,
+      }));
+    };
+    window.addEventListener(`car-status-${player}` as any, handler as EventListener);
+    return () => window.removeEventListener(`car-status-${player}` as any, handler as EventListener);
+  }, [player]);
 
   useEffect(() => {
     const down = new Set<string>();
     const handleKeyDown = (e: KeyboardEvent) => {
       const mapped = keyMap[e.key as keyof typeof keyMap];
       if (!mapped) return;
-      if (down.has(mapped)) return; // prevent repeat
+      if (down.has(mapped)) return;
       down.add(mapped);
       e.preventDefault();
       press(mapped);
@@ -199,8 +128,8 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-    // eslint-disable-next-line
-  }, [player]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [player, press, release]);
 
   const Key: React.FC<{ label: string }> = ({ label }) => {
     const isPressed = label === 'HIT' ? hitActive : active.has(label);
@@ -221,7 +150,8 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({
   };
 
   return (
-    <div className="bg-[#0d1b2e] text-white p-4 shadow-lg flex flex-col justify-center w-50 h-full">
+    <div className="bg-[#0d1b2e] text-white p-4 shadow-lg flex flex-col justify-between w-[200px] min-h-[200px]">
+      {/* Movement */}
       <div className="flex flex-col items-center gap-1">
         <h2 className="text-s font-black tracking-widest text-center mb-4">CONTROLS</h2>
         <h3 className="text-xs font-black text-gray-400 mb-3 text-center">MOVEMENT</h3>
@@ -233,9 +163,9 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({
         </div>
       </div>
 
-      {/* Hit Button */}
-      <h3 className="text-xs font-black text-gray-400 mb-1 text-center pt-3">HIT</h3>
-      <div className="flex flex-col items-center">
+      {/* Hit button */}
+      <div className="flex flex-col items-center mt-3">
+        <h3 className="text-xs font-black text-gray-400 mb-1 text-center">HIT</h3>
         <Key label="HIT" />
       </div>
 
@@ -264,13 +194,13 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({
         </div>
       </div>
 
-      {/* Forfeit Button */}
-      {matchIdRef && wsRef && setWinner && playerId && opponentId && opponentName && (
+      {/* Forfeit button */}
+      {props.onForfeit && (
         <button
-          onClick={handleForfeit}
-          className="mt-4 w-full px-4 py-2 rounded text-xs font-black uppercase tracking-widest bg-red-900 hover:bg-red-700 text-white transition-colors"
+          onClick={props.onForfeit}
+          className="mt-4 w-full px-3 py-2 rounded text-xs font-black uppercase tracking-widest bg-red-900 hover:bg-red-700 text-white transition-colors"
         >
-          Forfeit
+          {props.forfeitLabel ?? 'Forfeit'}
         </button>
       )}
     </div>
