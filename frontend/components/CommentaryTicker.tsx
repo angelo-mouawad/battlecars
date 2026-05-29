@@ -14,7 +14,9 @@ export default function CommentaryTicker({ lines }: CommentaryTickerProps) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [lines]);
 
-  if (lines.length === 0) return null;
+  if (lines.length === 0) return (
+  <div className="w-full bg-[#080f1a] border-t border-[#1e3d6b] min-h-[64px]" />
+);
 
   return (
     <div className="w-full bg-[#080f1a] border-t border-[#1e3d6b] px-4 py-2 flex items-center gap-3 min-h-[48px]">
