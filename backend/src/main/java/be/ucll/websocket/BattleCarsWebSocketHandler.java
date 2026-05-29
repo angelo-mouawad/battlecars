@@ -78,16 +78,7 @@ public class BattleCarsWebSocketHandler extends TextWebSocketHandler {
                         Integer carId = node.has("carId") ? node.get("carId").asInt() : null;
 
                         // Determine damage from hitStrength — default 10
-                        // light = 5, medium = 10, hard = 15
                         int damage = 10;
-                        if (node.has("hitStrength")) {
-                            damage = switch (node.get("hitStrength").asText()) {
-                                case "light"  -> 5;
-                                case "medium" -> 10;
-                                case "hard"   -> 15;
-                                default       -> 10;
-                            };
-                        }
 
                         if (carId != null) {
                             Map<String, Object> hitResult = gameService.processHit(activeMatchId, carId, damage);

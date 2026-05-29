@@ -1,1 +1,0 @@
-Test purposes only. Deploying prod image.
