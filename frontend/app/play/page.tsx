@@ -281,12 +281,15 @@ export default function PlayPage() {
           opponentId={player2Id}
           opponentName={player2Name}
         />
-        <Field
-          car1Position={car1Pos}
-          car2Position={car2Pos}
-          car1Hit={car1Hit}
-          car2Hit={car2Hit}
-        />
+        <div className="flex-1 flex flex-col items-center gap-4 p-4">
+          <Field
+            car1Position={car1Pos}
+            car2Position={car2Pos}
+            car1Hit={car1Hit}
+            car2Hit={car2Hit}
+          />
+          <CommentaryTicker lines={commentary} />
+        </div>
         <ControlsIndicator
           player={2}
           sendCommand={sendCommand}
@@ -298,10 +301,6 @@ export default function PlayPage() {
           opponentName={player1Name}
         />
       </div>
-
-      {/* AI Commentary ticker at the bottom */}
-      <CommentaryTicker lines={commentary} />
-
       <Footer />
     </div>
   );
