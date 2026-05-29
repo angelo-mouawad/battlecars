@@ -274,6 +274,12 @@ export default function PlayPage() {
         <ControlsIndicator
           player={1}
           sendCommand={sendCommand}
+          matchIdRef={matchIdRef}
+          wsRef={ws}
+          setWinner={setWinner}
+          playerId={player1Id}
+          opponentId={player2Id}
+          opponentName={player2Name}
         />
         <Field
           car1Position={car1Pos}
@@ -284,6 +290,12 @@ export default function PlayPage() {
         <ControlsIndicator
           player={2}
           sendCommand={sendCommand}
+          matchIdRef={matchIdRef}
+          wsRef={ws}
+          setWinner={setWinner}
+          playerId={player2Id}
+          opponentId={player1Id}
+          opponentName={player1Name}
         />
       </div>
 

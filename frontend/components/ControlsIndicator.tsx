@@ -37,7 +37,6 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({
   wsRef,
   setWinner,
   playerId,
-  playerName,
   opponentId,
   opponentName
 }) => {
@@ -222,7 +221,7 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({
   };
 
   return (
-    <div className="bg-[#0d1b2e] text-white p-4 shadow-lg flex flex-col justify-center w-50">
+    <div className="bg-[#0d1b2e] text-white p-4 shadow-lg flex flex-col justify-center w-50 h-full">
       <div className="flex flex-col items-center gap-1">
         <h2 className="text-s font-black tracking-widest text-center mb-4">CONTROLS</h2>
         <h3 className="text-xs font-black text-gray-400 mb-3 text-center">MOVEMENT</h3>
