@@ -1,8 +1,10 @@
 package be.ucll.websocket;
 
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,6 +19,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import be.ucll.service.CommentaryService;
 import be.ucll.service.GameService;
 import be.ucll.service.SensorService;
+import be.ucll.service.VoiceService;
 
 @Component
 public class BattleCarsWebSocketHandler extends TextWebSocketHandler {
@@ -29,6 +32,9 @@ public class BattleCarsWebSocketHandler extends TextWebSocketHandler {
 
     @Autowired
     private CommentaryService commentaryService;
+
+    @Autowired
+    private VoiceService voiceService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -94,27 +100,46 @@ public class BattleCarsWebSocketHandler extends TextWebSocketHandler {
                         if (carId != null) {
                             Map<String, Object> hitResult = gameService.processHit(activeMatchId, carId, damage);
 
-                            // Broadcast HIT_RESULT to all browsers so they can update HP bars
+                            // Broadcast HIT_RESULT immediately — don't wait for commentary
                             broadcastToBrowsers(objectMapper.writeValueAsString(hitResult));
 
-                            // Generate and broadcast AI commentary asynchronously
+                            // Get health values for commentary context
                             int car1Health = hitResult.get("car1Health") != null ? (int) hitResult.get("car1Health") : 50;
                             int car2Health = hitResult.get("car2Health") != null ? (int) hitResult.get("car2Health") : 50;
                             final String p1 = player1Name;
                             final String p2 = player2Name;
 
+                            // Fire commentary async — text arrives ~1s after hit
+                            // Audio arrives ~0.5s after text
                             commentaryService.generateCommentary(hitResult, p1, car1Health, p2, car2Health)
-                                    .thenAccept(commentary -> {
-                                        if (commentary != null && !commentary.isBlank()) {
-                                            try {
-                                                String commentaryMsg = objectMapper.writeValueAsString(
-                                                        Map.of("type", "COMMENTARY", "text", commentary)
-                                                );
-                                                broadcastToBrowsers(commentaryMsg);
-                                            } catch (Exception e) {
-                                                System.out.println("Could not broadcast commentary: " + e.getMessage());
-                                            }
+                                    .thenCompose(commentary -> {
+                                        if (commentary == null) return CompletableFuture.completedFuture(null);
+
+                                        // 1. Broadcast text immediately so the ticker updates
+                                        try {
+                                            String textMsg = objectMapper.writeValueAsString(
+                                                    Map.of("type", "COMMENTARY", "text", commentary)
+                                            );
+                                            broadcastToBrowsers(textMsg);
+                                            System.out.println("Commentary: " + commentary);
+                                        } catch (Exception ex) {
+                                            System.out.println("Could not broadcast commentary text: " + ex.getMessage());
                                         }
+
+                                        // 2. Generate speech and broadcast as separate COMMENTARY_AUDIO message
+                                        return voiceService.generateSpeech(commentary)
+                                                .thenAccept(audioBytes -> {
+                                                    if (audioBytes == null) return;
+                                                    try {
+                                                        String audioBase64 = Base64.getEncoder().encodeToString(audioBytes);
+                                                        String audioMsg = objectMapper.writeValueAsString(
+                                                                Map.of("type", "COMMENTARY_AUDIO", "audio", audioBase64)
+                                                        );
+                                                        broadcastToBrowsers(audioMsg);
+                                                    } catch (Exception ex) {
+                                                        System.out.println("Could not broadcast commentary audio: " + ex.getMessage());
+                                                    }
+                                                });
                                     });
 
                             // If the match is over, clear the active match ID
