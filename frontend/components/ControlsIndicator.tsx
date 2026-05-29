@@ -1,6 +1,5 @@
 'use client';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useWebSocket } from '@/app/hooks/useWebSocket';
 
 interface ControlsIndicatorProps {
   player?: 1 | 2;
@@ -31,24 +30,22 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = (props) => {
   const [active, setActive] = useState<string | null>(null);
   const activeRef = useRef<string | null>(null);
 
-  const handleMessage = useCallback((_data: string) => {}, []);
-  const { sendCommand: wsSendCommand } = useWebSocket(handleMessage);
-  const sendCommand = props.sendCommand ?? wsSendCommand;
+  const sendCommand = props.sendCommand ?? (() => {});
 
-  const press = (label: string) => {
+  const press = useCallback((label: string) => {
     const direction = directionMap[label];
     if (!direction) return;
     activeRef.current = label;
     setActive(label);
     sendCommand(`${player}:${direction}`);
-  };
+  }, [player, sendCommand]);
 
-  const release = () => {
+  const release = useCallback(() => {
     if (activeRef.current === null) return;
     activeRef.current = null;
     setActive(null);
     sendCommand(`${player}:STOP`);
-  };
+  }, [player, sendCommand]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -68,7 +65,7 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = (props) => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [player]);
+  }, [player, press, release]);
 
   const Key: React.FC<{ label: string }> = ({ label }) => {
     const isPressed = active === label;
@@ -88,7 +85,7 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = (props) => {
   };
 
   return (
-    <div className="bg-[#0d1b2e] text-white p-4 shadow-lg flex flex-col justify-start w-[200px]">
+    <div className="bg-[#0d1b2e] text-white p-4 shadow-lg flex flex-col justify-between w-[200px] min-h-[200px]">
       {/* Controls section */}
       <div className="flex flex-col items-center gap-1">
         <h2 className="text-s font-black tracking-widest text-center mb-4">CONTROLS</h2>
@@ -101,7 +98,7 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = (props) => {
         </div>
       </div>
 
-      {/* Forfeit button */}
+      {/* Forfeit button at bottom of panel */}
       {props.onForfeit && (
         <button
           onClick={props.onForfeit}
