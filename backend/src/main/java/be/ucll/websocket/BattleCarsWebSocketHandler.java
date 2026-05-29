@@ -1,8 +1,10 @@
 package be.ucll.websocket;
 
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,8 +16,10 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import be.ucll.service.CommentaryService;
 import be.ucll.service.GameService;
 import be.ucll.service.SensorService;
+import be.ucll.service.VoiceService;
 
 @Component
 public class BattleCarsWebSocketHandler extends TextWebSocketHandler {
@@ -26,6 +30,12 @@ public class BattleCarsWebSocketHandler extends TextWebSocketHandler {
     @Autowired
     private GameService gameService;
 
+    @Autowired
+    private CommentaryService commentaryService;
+
+    @Autowired
+    private VoiceService voiceService;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private WebSocketSession espSession = null;
@@ -34,6 +44,10 @@ public class BattleCarsWebSocketHandler extends TextWebSocketHandler {
     // Set by the browser when a match starts: "MATCH_START:{matchId}"
     // Cleared when the match ends or browser sends "MATCH_END"
     private Long activeMatchId = null;
+
+    // Player names loaded from DB when match starts — used for commentary
+    private String player1Name = "Player 1";
+    private String player2Name = "Player 2";
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -57,16 +71,19 @@ public class BattleCarsWebSocketHandler extends TextWebSocketHandler {
             // ----------------------------------------------------------------
             System.out.println("Received from ESP32: " + payload);
 
-            // Save to DB — tag with match_id if a match is running
-            try {
-                if (activeMatchId != null) {
-                    sensorService.saveFromJsonWithMatch(payload, activeMatchId);
-                } else {
-                    sensorService.saveFromJson(payload);
+            // Save to DB in background — do NOT block the WebSocket thread
+            final Long matchIdForSave = activeMatchId;
+            new Thread(() -> {
+                try {
+                    if (matchIdForSave != null) {
+                        sensorService.saveFromJsonWithMatch(payload, matchIdForSave);
+                    } else {
+                        sensorService.saveFromJson(payload);
+                    }
+                } catch (Exception e) {
+                    System.out.println("Could not save sensor reading: " + e.getMessage());
                 }
-            } catch (Exception e) {
-                System.out.println("Could not save sensor reading: " + e.getMessage());
-            }
+            }).start();
 
             // If a match is active, check for hit events and apply game logic
             if (activeMatchId != null) {
@@ -77,14 +94,53 @@ public class BattleCarsWebSocketHandler extends TextWebSocketHandler {
                     if (isHit) {
                         Integer carId = node.has("carId") ? node.get("carId").asInt() : null;
 
-                        // Determine damage from hitStrength — default 10
+                        // Always 10 damage — simplified from light/medium/hard
                         int damage = 10;
 
                         if (carId != null) {
                             Map<String, Object> hitResult = gameService.processHit(activeMatchId, carId, damage);
 
-                            // Broadcast HIT_RESULT to all browsers so they can update HP bars
+                            // Broadcast HIT_RESULT immediately — don't wait for commentary
                             broadcastToBrowsers(objectMapper.writeValueAsString(hitResult));
+
+                            // Get health values for commentary context
+                            int car1Health = hitResult.get("car1Health") != null ? (int) hitResult.get("car1Health") : 50;
+                            int car2Health = hitResult.get("car2Health") != null ? (int) hitResult.get("car2Health") : 50;
+                            final String p1 = player1Name;
+                            final String p2 = player2Name;
+
+                            // Fire commentary async — text arrives ~1s after hit
+                            // Audio arrives ~0.5s after text
+                            commentaryService.generateCommentary(hitResult, p1, car1Health, p2, car2Health)
+                                    .thenCompose(commentary -> {
+                                        if (commentary == null) return CompletableFuture.completedFuture(null);
+
+                                        // 1. Broadcast text immediately so the ticker updates
+                                        try {
+                                            String textMsg = objectMapper.writeValueAsString(
+                                                    Map.of("type", "COMMENTARY", "text", commentary)
+                                            );
+                                            broadcastToBrowsers(textMsg);
+                                            System.out.println("Commentary: " + commentary);
+                                        } catch (Exception ex) {
+                                            System.out.println("Could not broadcast commentary text: " + ex.getMessage());
+                                        }
+
+                                        // 2. Generate speech and broadcast as separate COMMENTARY_AUDIO message
+                                        return voiceService.generateSpeech(commentary)
+                                                .thenAccept(audioBytes -> {
+                                                    if (audioBytes == null) return;
+                                                    try {
+                                                        String audioBase64 = Base64.getEncoder().encodeToString(audioBytes);
+                                                        String audioMsg = objectMapper.writeValueAsString(
+                                                                Map.of("type", "COMMENTARY_AUDIO", "audio", audioBase64)
+                                                        );
+                                                        broadcastToBrowsers(audioMsg);
+                                                    } catch (Exception ex) {
+                                                        System.out.println("Could not broadcast commentary audio: " + ex.getMessage());
+                                                    }
+                                                });
+                                    });
 
                             // If the match is over, clear the active match ID
                             if (Boolean.TRUE.equals(hitResult.get("matchOver"))) {
@@ -99,7 +155,6 @@ public class BattleCarsWebSocketHandler extends TextWebSocketHandler {
             }
 
             // Always forward the raw ESP32 payload to all browsers
-            // (browsers use this for movement, speed, orientation display)
             broadcastToBrowsers(payload);
 
         } else {
@@ -109,20 +164,33 @@ public class BattleCarsWebSocketHandler extends TextWebSocketHandler {
             System.out.println("Received from browser: " + payload);
 
             if (payload.startsWith("MATCH_START:")) {
-                // Browser is telling us which match just started
                 try {
                     activeMatchId = Long.parseLong(payload.split(":")[1].trim());
                     System.out.println("Active match set to: " + activeMatchId);
+
+                    // Load actual player names from DB for commentary
+                    try {
+                        Map<String, Object> matchState = gameService.getMatchState(activeMatchId);
+                        List<?> players = (List<?>) matchState.get("players");
+                        if (players != null && players.size() >= 2) {
+                            player1Name = (String) ((Map<?, ?>) players.get(0)).get("playerName");
+                            player2Name = (String) ((Map<?, ?>) players.get(1)).get("playerName");
+                            System.out.println("Commentary players: " + player1Name + " vs " + player2Name);
+                        }
+                    } catch (Exception e) {
+                        System.out.println("Could not load player names: " + e.getMessage());
+                    }
+
                 } catch (Exception e) {
                     System.out.println("Could not parse match ID from: " + payload);
                 }
             } else if (payload.equals("MATCH_END")) {
-                // Browser is forcing the match to end (e.g. player quit)
                 activeMatchId = null;
+                player1Name = "Player 1";
+                player2Name = "Player 2";
                 System.out.println("Active match cleared by browser");
             } else {
                 // Regular movement command — forward to ESP32
-                // Format: "1:UP", "1:LEFT", "2:DOWN", etc.
                 if (espSession != null && espSession.isOpen()) {
                     espSession.sendMessage(new TextMessage(payload));
                 }

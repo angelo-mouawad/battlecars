@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ControlsIndicator from '@/components/ControlsIndicator';
+import CommentaryTicker from '@/components/CommentaryTicker';
 import Field from '@/components/Field';
 import Footer from '@/components/Footer';
 import Scoreboard from '@/components/Scoreboard';
@@ -43,6 +44,7 @@ export default function PlayPage() {
   const player2Id = searchParams.get('p2') ? Number(searchParams.get('p2')) : null;
   const player1Name = searchParams.get('p1name') ?? 'Player 1';
   const player2Name = searchParams.get('p2name') ?? 'Player 2';
+  
 
   const router = useRouter();
 
@@ -50,6 +52,7 @@ export default function PlayPage() {
   const [health2, setHealth2] = useState(MAX_HEALTH);
   const [winner, setWinner] = useState<{ name: string; carId: number } | null>(null);
   const [gameReady, setGameReady] = useState(false);
+  const [commentary, setCommentary] = useState<string[]>([]);
 
   const [car1Pos, setCar1Pos] = useState<CarPosition>({ x: 25, y: 50 });
   const [car2Pos, setCar2Pos] = useState<CarPosition>({ x: 75, y: 50 });
@@ -59,6 +62,8 @@ export default function PlayPage() {
 
   const ws = useRef<WebSocket | null>(null);
   const matchIdRef = useRef<number | null>(null);
+
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   const updatePosition = useCallback((cmd: string) => {
     const parts = cmd.split(':');
@@ -76,6 +81,7 @@ export default function PlayPage() {
         default:      return prev;
       }
     });
+    
   }, []);
 
   const triggerHitFlash = useCallback((carId: number) => {
@@ -89,7 +95,6 @@ export default function PlayPage() {
     ws.current = new WebSocket(WS_URL);
 
     ws.current.onopen = () => {
-      console.log('WS connected');
       if (matchIdRef.current) {
         ws.current?.send(`MATCH_START:${matchIdRef.current}`);
       }
@@ -101,23 +106,43 @@ export default function PlayPage() {
 
         if (data.type === 'HIT_RESULT') {
           const hit = data as HitResult;
-
           if (hit.car1Health !== undefined) setHealth1(hit.car1Health);
           if (hit.car2Health !== undefined) setHealth2(hit.car2Health);
-
           if (hit.hitCarId) triggerHitFlash(hit.hitCarId);
-
           if (hit.matchOver && hit.winnerName && hit.winnerCarId !== undefined) {
             matchIdRef.current = null;
             setWinner({ name: hit.winnerName, carId: hit.winnerCarId });
           }
+        } else if (data.type === 'COMMENTARY') {
+          setCommentary(prev => [...prev, data.text]);
+        } else if (data.type === 'COMMENTARY_AUDIO') {
+          (async () => {
+            try {
+              if (!audioContextRef.current) {
+                audioContextRef.current = new AudioContext();
+              }
+              const audioContext = audioContextRef.current;
+              if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+              }
+              const audioBytes = Uint8Array.from(atob(data.audio), c => c.charCodeAt(0));
+              const audioBuffer = await audioContext.decodeAudioData(audioBytes.buffer);
+              const source = audioContext.createBufferSource();
+              source.buffer = audioBuffer;
+              source.connect(audioContext.destination);
+              source.start(0);
+            } catch (e) {
+              console.warn('Could not play commentary audio:', e);
+            }
+          })();
         }
       } catch {
       }
     };
 
-    ws.current.onerror = (e) => console.error('WS error', e);
-    ws.current.onclose = () => console.log('WS disconnected');
+    // Suppress error noise from React dev mode double mount
+    ws.current.onerror = () => {};
+    ws.current.onclose = () => {};
   }, [triggerHitFlash]);
 
   const sendCommand = useCallback((cmd: string) => {
@@ -130,6 +155,7 @@ export default function PlayPage() {
 
 
   useEffect(() => {
+
     if (!player1Id || !player2Id) {
       router.push('/');
       return;
@@ -176,19 +202,19 @@ export default function PlayPage() {
 
     initMatch();
 
-  return () => {
-    if (matchIdRef.current) {
-      fetch(`${API_URL}/api/matches/${matchIdRef.current}/end`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ winnerPlayerId: player2Id }),
-      }).catch(() => {});
-    }
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      ws.current.send('MATCH_END');
-    }
-    ws.current?.close();
-  };
+    return () => {
+      if (matchIdRef.current) {
+        fetch(`${API_URL}/api/matches/${matchIdRef.current}/end`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ winnerPlayerId: player2Id }),
+        }).catch(() => {});
+      }
+      if (ws.current?.readyState === WebSocket.OPEN) {
+        ws.current.send('MATCH_END');
+      }
+      ws.current?.close();
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (winner) {
@@ -244,18 +270,10 @@ export default function PlayPage() {
         </div>
       )}
 
-
-      <div className="flex flex-1 items-stretch">
+      <div className="flex flex-1 items-start">
         <ControlsIndicator
           player={1}
           sendCommand={sendCommand}
-          matchIdRef={matchIdRef}
-          wsRef={ws}
-          setWinner={setWinner}
-          playerId={player1Id}
-          playerName={player1Name}
-          opponentId={player2Id}
-          opponentName={player2Name}
         />
         <Field
           car1Position={car1Pos}
@@ -266,17 +284,11 @@ export default function PlayPage() {
         <ControlsIndicator
           player={2}
           sendCommand={sendCommand}
-          matchIdRef={matchIdRef}
-          wsRef={ws}
-          setWinner={setWinner}
-          playerId={player2Id}
-          playerName={player2Name}
-          opponentId={player1Id}
-          opponentName={player1Name}
         />
       </div>
 
-
+      {/* AI Commentary ticker at the bottom */}
+      <CommentaryTicker lines={commentary} />
 
       <Footer />
     </div>

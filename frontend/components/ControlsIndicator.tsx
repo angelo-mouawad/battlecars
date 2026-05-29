@@ -19,6 +19,8 @@ interface CarStatus {
   hit: boolean;
   hitStrength: string;
   orientation: string;
+  forfeitLabel?: string;
+  onForfeit?: () => void;
 }
 
 const directionMap: Record<string, string> = {
@@ -221,8 +223,8 @@ const ControlsIndicator: React.FC<ControlsIndicatorProps> = ({
 
   return (
     <div className="bg-[#0d1b2e] text-white p-4 shadow-lg flex flex-col justify-center w-50">
-      <h2 className="text-s font-black tracking-widest text-center mb-4">CONTROLS</h2>
       <div className="flex flex-col items-center gap-1">
+        <h2 className="text-s font-black tracking-widest text-center mb-4">CONTROLS</h2>
         <h3 className="text-xs font-black text-gray-400 mb-3 text-center">MOVEMENT</h3>
         <Key label={keys.up} />
         <div className="flex gap-1">

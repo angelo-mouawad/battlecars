@@ -114,18 +114,18 @@ public class MatchController {
         return ResponseEntity.ok(gameService.getHeadToHeadHistory(player1, player2));
     }
 
-    @GetMapping("/test/commentary")
-    public Map<String, Object> testCommentary() throws Exception {
-        Map<String, Object> fakeHit = new HashMap<>();
-        fakeHit.put("matchOver", false);
-        fakeHit.put("damage", 15);
-        fakeHit.put("hitCarId", 1);
-
-        String result = commentaryService
-            .generateCommentary(fakeHit, "eddy", 35, "Zenin", 20)
-            .get();
-
-        return Map.of("commentary", result !=null ? result : "generation failed");    
-
-    }
+//    @GetMapping("/test/commentary")
+//    public Map<String, Object> testCommentary() throws Exception {
+//        Map<String, Object> fakeHit = new HashMap<>();
+//        fakeHit.put("matchOver", false);
+//        fakeHit.put("damage", 15);
+//        fakeHit.put("hitCarId", 1);
+//
+//        String result = commentaryService
+//            .generateCommentary(fakeHit, "eddy", 35, "Zenin", 20)
+//            .get();
+//
+//        return Map.of("commentary", result !=null ? result : "generation failed");
+//
+//    }
 }
