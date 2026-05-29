@@ -113,7 +113,6 @@ export default function PlayPage() {
           }
         }
       } catch {
-        // Not JSON — ignore
       }
     };
 
@@ -128,24 +127,7 @@ export default function PlayPage() {
     updatePosition(cmd);
   }, [updatePosition]);
 
-  const forfeitMatch = useCallback(async (winnerPlayerId: number, winnerName: string, winnerCarId: number) => {
-    if (!matchIdRef.current) return;
-    const savedId = matchIdRef.current;
-    matchIdRef.current = null;
-    try {
-      await fetch(`${API_URL}/api/matches/${savedId}/end`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ winnerPlayerId }),
-      });
-      if (ws.current?.readyState === WebSocket.OPEN) {
-        ws.current.send('MATCH_END');
-      }
-      setWinner({ name: winnerName, carId: winnerCarId });
-    } catch (err) {
-      console.error('Could not end match:', err);
-    }
-  }, []);
+
 
   useEffect(() => {
     if (!player1Id || !player2Id) {
@@ -262,32 +244,39 @@ export default function PlayPage() {
         </div>
       )}
 
+
       <div className="flex flex-1 items-stretch">
-        <ControlsIndicator player={1} sendCommand={sendCommand} />
+        <ControlsIndicator
+          player={1}
+          sendCommand={sendCommand}
+          matchIdRef={matchIdRef}
+          wsRef={ws}
+          setWinner={setWinner}
+          playerId={player1Id}
+          playerName={player1Name}
+          opponentId={player2Id}
+          opponentName={player2Name}
+        />
         <Field
           car1Position={car1Pos}
           car2Position={car2Pos}
           car1Hit={car1Hit}
           car2Hit={car2Hit}
         />
-        <ControlsIndicator player={2} sendCommand={sendCommand} />
+        <ControlsIndicator
+          player={2}
+          sendCommand={sendCommand}
+          matchIdRef={matchIdRef}
+          wsRef={ws}
+          setWinner={setWinner}
+          playerId={player2Id}
+          playerName={player2Name}
+          opponentId={player1Id}
+          opponentName={player1Name}
+        />
       </div>
 
-      {/* Forfeit buttons — visible during active match */}
-      <div className="flex justify-center gap-4 py-2 bg-[#0d1b2e]">
-        <button
-          onClick={() => forfeitMatch(player2Id!, player2Name, 2)}
-          className="px-4 py-1 rounded text-xs font-black uppercase tracking-widest bg-red-900 hover:bg-red-700 text-white transition-colors"
-        >
-          {player1Name} Forfeits
-        </button>
-        <button
-          onClick={() => forfeitMatch(player1Id!, player1Name, 1)}
-          className="px-4 py-1 rounded text-xs font-black uppercase tracking-widest bg-red-900 hover:bg-red-700 text-white transition-colors"
-        >
-          {player2Name} Forfeits
-        </button>
-      </div>
+
 
       <Footer />
     </div>
