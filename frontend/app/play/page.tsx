@@ -10,6 +10,10 @@ import Scoreboard from '@/components/Scoreboard';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 const MAX_HEALTH = 50;
 
+const MOVE_STEP = 5;
+const MIN_POS = 5;
+const MAX_POS = 95;
+
 interface HitResult {
   type: string;
   matchId: number;
@@ -23,10 +27,18 @@ interface HitResult {
   winnerCarId?: number;
 }
 
+interface CarPosition {
+  x: number;
+  y: number;
+}
+
+function clamp(val: number, min: number, max: number) {
+  return Math.min(Math.max(val, min), max);
+}
+
 export default function PlayPage() {
   const searchParams = useSearchParams();
 
-  // Player info from URL — set by Lobby
   const player1Id = searchParams.get('p1') ? Number(searchParams.get('p1')) : null;
   const player2Id = searchParams.get('p2') ? Number(searchParams.get('p2')) : null;
   const player1Name = searchParams.get('p1name') ?? 'Player 1';
@@ -34,25 +46,50 @@ export default function PlayPage() {
 
   const router = useRouter();
 
-  // Game state
   const [health1, setHealth1] = useState(MAX_HEALTH);
   const [health2, setHealth2] = useState(MAX_HEALTH);
   const [winner, setWinner] = useState<{ name: string; carId: number } | null>(null);
   const [gameReady, setGameReady] = useState(false);
 
-  const ws = useRef<WebSocket | null>(null);
-  const matchIdRef = useRef<number | null>(null); // ref so WS handler always has latest value
+  const [car1Pos, setCar1Pos] = useState<CarPosition>({ x: 25, y: 50 });
+  const [car2Pos, setCar2Pos] = useState<CarPosition>({ x: 75, y: 50 });
 
-  // -------------------------------------------------------------------------
-  // WebSocket — connect once, handle incoming messages
-  // -------------------------------------------------------------------------
+  const [car1Hit, setCar1Hit] = useState(false);
+  const [car2Hit, setCar2Hit] = useState(false);
+
+  const ws = useRef<WebSocket | null>(null);
+  const matchIdRef = useRef<number | null>(null);
+
+  const updatePosition = useCallback((cmd: string) => {
+    const parts = cmd.split(':');
+    if (parts.length !== 2) return;
+    const carId = parts[0];
+    const direction = parts[1];
+    if (direction === 'STOP') return;
+    const setter = carId === '1' ? setCar1Pos : setCar2Pos;
+    setter(prev => {
+      switch (direction) {
+        case 'UP':    return { ...prev, y: clamp(prev.y - MOVE_STEP, MIN_POS, MAX_POS) };
+        case 'DOWN':  return { ...prev, y: clamp(prev.y + MOVE_STEP, MIN_POS, MAX_POS) };
+        case 'LEFT':  return { ...prev, x: clamp(prev.x - MOVE_STEP, MIN_POS, MAX_POS) };
+        case 'RIGHT': return { ...prev, x: clamp(prev.x + MOVE_STEP, MIN_POS, MAX_POS) };
+        default:      return prev;
+      }
+    });
+  }, []);
+
+  const triggerHitFlash = useCallback((carId: number) => {
+    const setter = carId === 1 ? setCar1Hit : setCar2Hit;
+    setter(true);
+    setTimeout(() => setter(false), 600);
+  }, []);
+
   const connectWebSocket = useCallback(() => {
     const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'wss://team-01-en-backend-itip-en-01.apps.okd.ucll.cloud/ws';
     ws.current = new WebSocket(WS_URL);
 
     ws.current.onopen = () => {
       console.log('WS connected');
-      // If we already have a matchId (e.g. after reconnect), re-send MATCH_START
       if (matchIdRef.current) {
         ws.current?.send(`MATCH_START:${matchIdRef.current}`);
       }
@@ -65,34 +102,38 @@ export default function PlayPage() {
         if (data.type === 'HIT_RESULT') {
           const hit = data as HitResult;
 
-          // Update health bars
           if (hit.car1Health !== undefined) setHealth1(hit.car1Health);
           if (hit.car2Health !== undefined) setHealth2(hit.car2Health);
 
-          // Handle match over
+          if (hit.hitCarId) triggerHitFlash(hit.hitCarId);
+
           if (hit.matchOver && hit.winnerName && hit.winnerCarId !== undefined) {
+            matchIdRef.current = null;
             setWinner({ name: hit.winnerName, carId: hit.winnerCarId });
           }
         }
       } catch {
-        // Not JSON — ignore (e.g. raw ESP32 movement data)
+        // Not JSON — ignore
       }
     };
 
     ws.current.onerror = (e) => console.error('WS error', e);
     ws.current.onclose = () => console.log('WS disconnected');
-  }, []);
+  }, [triggerHitFlash]);
 
   const sendCommand = useCallback((cmd: string) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
       ws.current.send(cmd);
     }
-  }, []);
+    updatePosition(cmd);
+  }, [updatePosition]);
 
   const forfeitMatch = useCallback(async (winnerPlayerId: number, winnerName: string, winnerCarId: number) => {
     if (!matchIdRef.current) return;
+    const savedId = matchIdRef.current;
+    matchIdRef.current = null;
     try {
-      await fetch(`${API_URL}/api/matches/${matchIdRef.current}/end`, {
+      await fetch(`${API_URL}/api/matches/${savedId}/end`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ winnerPlayerId }),
@@ -105,10 +146,6 @@ export default function PlayPage() {
       console.error('Could not end match:', err);
     }
   }, []);
-
-  // -------------------------------------------------------------------------
-  // On mount: auth check → create match → start match → tell WS → game ready
-  // -------------------------------------------------------------------------
 
   useEffect(() => {
     if (!player1Id || !player2Id) {
@@ -135,13 +172,10 @@ export default function PlayPage() {
         const created = await createRes.json();
         const newMatchId: number = created.matchId;
 
-        // Step 2: start the match
         await fetch(`${API_URL}/api/matches/${newMatchId}/start`, { method: 'POST' });
 
-        // Step 3: store match ID and tell the WebSocket handler
         matchIdRef.current = newMatchId;
 
-        // WS might not be open yet — wait for it
         const sendStart = () => {
           if (ws.current?.readyState === WebSocket.OPEN) {
             ws.current.send(`MATCH_START:${newMatchId}`);
@@ -162,7 +196,6 @@ export default function PlayPage() {
 
   return () => {
     if (matchIdRef.current) {
-      // Fire and forget — mark the match as abandoned in the DB
       fetch(`${API_URL}/api/matches/${matchIdRef.current}/end`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -231,7 +264,12 @@ export default function PlayPage() {
 
       <div className="flex flex-1 items-stretch">
         <ControlsIndicator player={1} sendCommand={sendCommand} />
-        <Field />
+        <Field
+          car1Position={car1Pos}
+          car2Position={car2Pos}
+          car1Hit={car1Hit}
+          car2Hit={car2Hit}
+        />
         <ControlsIndicator player={2} sendCommand={sendCommand} />
       </div>
 
