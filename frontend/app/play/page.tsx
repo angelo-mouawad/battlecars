@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ControlsIndicator from '@/components/ControlsIndicator';
+import CommentaryTicker from '@/components/CommentaryTicker';
 import Field from '@/components/Field';
 import Footer from '@/components/Footer';
 import Scoreboard from '@/components/Scoreboard';
@@ -50,6 +51,7 @@ export default function PlayPage() {
   const [health2, setHealth2] = useState(MAX_HEALTH);
   const [winner, setWinner] = useState<{ name: string; carId: number } | null>(null);
   const [gameReady, setGameReady] = useState(false);
+  const [commentary, setCommentary] = useState<string[]>([]);
 
   const [car1Pos, setCar1Pos] = useState<CarPosition>({ x: 25, y: 50 });
   const [car2Pos, setCar2Pos] = useState<CarPosition>({ x: 75, y: 50 });
@@ -101,16 +103,15 @@ export default function PlayPage() {
 
         if (data.type === 'HIT_RESULT') {
           const hit = data as HitResult;
-
           if (hit.car1Health !== undefined) setHealth1(hit.car1Health);
           if (hit.car2Health !== undefined) setHealth2(hit.car2Health);
-
           if (hit.hitCarId) triggerHitFlash(hit.hitCarId);
-
           if (hit.matchOver && hit.winnerName && hit.winnerCarId !== undefined) {
             matchIdRef.current = null;
             setWinner({ name: hit.winnerName, carId: hit.winnerCarId });
           }
+        } else if (data.type === 'COMMENTARY') {
+          setCommentary(prev => [...prev, data.text]);
         }
       } catch {
         // Not JSON — ignore
@@ -262,32 +263,29 @@ export default function PlayPage() {
         </div>
       )}
 
-      <div className="flex flex-1 items-stretch">
-        <ControlsIndicator player={1} sendCommand={sendCommand} />
+      <div className="flex flex-1 items-start">
+        <ControlsIndicator
+          player={1}
+          sendCommand={sendCommand}
+          forfeitLabel={`${player1Name} Forfeits`}
+          onForfeit={() => forfeitMatch(player2Id!, player2Name, 2)}
+        />
         <Field
           car1Position={car1Pos}
           car2Position={car2Pos}
           car1Hit={car1Hit}
           car2Hit={car2Hit}
         />
-        <ControlsIndicator player={2} sendCommand={sendCommand} />
+        <ControlsIndicator
+          player={2}
+          sendCommand={sendCommand}
+          forfeitLabel={`${player2Name} Forfeits`}
+          onForfeit={() => forfeitMatch(player1Id!, player1Name, 1)}
+        />
       </div>
 
-      {/* Forfeit buttons — visible during active match */}
-      <div className="flex justify-center gap-4 py-2 bg-[#0d1b2e]">
-        <button
-          onClick={() => forfeitMatch(player2Id!, player2Name, 2)}
-          className="px-4 py-1 rounded text-xs font-black uppercase tracking-widest bg-red-900 hover:bg-red-700 text-white transition-colors"
-        >
-          {player1Name} Forfeits
-        </button>
-        <button
-          onClick={() => forfeitMatch(player1Id!, player1Name, 1)}
-          className="px-4 py-1 rounded text-xs font-black uppercase tracking-widest bg-red-900 hover:bg-red-700 text-white transition-colors"
-        >
-          {player2Name} Forfeits
-        </button>
-      </div>
+      {/* AI Commentary ticker at the bottom */}
+      <CommentaryTicker lines={commentary} />
 
       <Footer />
     </div>
