@@ -44,7 +44,6 @@ export default function PlayPage() {
   const player2Id = searchParams.get('p2') ? Number(searchParams.get('p2')) : null;
   const player1Name = searchParams.get('p1name') ?? 'Player 1';
   const player2Name = searchParams.get('p2name') ?? 'Player 2';
-  
 
   const router = useRouter();
 
@@ -62,7 +61,6 @@ export default function PlayPage() {
 
   const ws = useRef<WebSocket | null>(null);
   const matchIdRef = useRef<number | null>(null);
-
   const audioContextRef = useRef<AudioContext | null>(null);
 
   const updatePosition = useCallback((cmd: string) => {
@@ -81,7 +79,6 @@ export default function PlayPage() {
         default:      return prev;
       }
     });
-    
   }, []);
 
   const triggerHitFlash = useCallback((carId: number) => {
@@ -135,13 +132,15 @@ export default function PlayPage() {
               console.warn('Could not play commentary audio:', e);
             }
           })();
+        } else if (data.carId !== undefined) {
+          // Raw ESP32 data — dispatch to the correct ControlsIndicator
+          window.dispatchEvent(new CustomEvent(`car-status-${data.carId}`, { detail: data }));
         }
       } catch {
         // Not JSON — ignore
       }
     };
 
-    // Suppress error noise from React dev mode double mount
     ws.current.onerror = () => {};
     ws.current.onclose = () => {};
   }, [triggerHitFlash]);
@@ -172,8 +171,21 @@ export default function PlayPage() {
     }
   }, []);
 
+  // Cleanup on page refresh
   useEffect(() => {
+    const handleUnload = () => {
+      if (matchIdRef.current) {
+        navigator.sendBeacon(
+          `${API_URL}/api/matches/${matchIdRef.current}/end`,
+          JSON.stringify({ winnerPlayerId: player2Id })
+        );
+      }
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, [player2Id]);
 
+  useEffect(() => {
     if (!player1Id || !player2Id) {
       router.push('/');
       return;
@@ -309,7 +321,6 @@ export default function PlayPage() {
         />
       </div>
 
-      {/* AI Commentary ticker at the bottom */}
       <CommentaryTicker lines={commentary} />
 
       <Footer />
