@@ -13,7 +13,7 @@ import java.util.Optional;
 @Repository
 public interface MatchRepository extends JpaRepository<Match, Long> {
 
-    // Find the first match with a given status — used to get the currently ACTIVE match
+    // Find the first match with a given status, used to get the currently ACTIVE match
     Optional<Match> findFirstByStatus(Status status);
 
     // All matches a specific player was part of, newest first

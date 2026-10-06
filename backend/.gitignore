@@ -1,14 +1,11 @@
 target/
 .env
-.env*
+.env.*
 application-local.properties
-*.log
-.DS_Store
 application-local-test.properties
+*.log
 
-gamerService.txt
-match.txt
-matchController.txt
-matchPlayer.txt
-matchPlayerrepo.txt
-matchRepo.txt
+.idea/
+*.iml
+.vscode/
+.DS_Store

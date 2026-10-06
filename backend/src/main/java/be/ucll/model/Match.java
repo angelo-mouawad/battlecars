@@ -40,7 +40,7 @@ public class Match {
 
     public Match(Status status) {
         this.status = status;
-        // startedAt is intentionally NOT set here — it's set in GameService.startMatch()
+        // startedAt is intentionally NOT set here, it's set in GameService.startMatch()
         // when the match moves WAITING → ACTIVE, so it reflects the real game start time
     }
 

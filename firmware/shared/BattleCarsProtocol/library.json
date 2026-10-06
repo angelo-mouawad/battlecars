@@ -1,0 +1,8 @@
+{
+  "name": "BattleCarsProtocol",
+  "version": "1.0.0",
+  "description": "Radio codes shared by the BattleCars hub and cars",
+  "frameworks": "arduino",
+  "platforms": "*",
+  "build": { "includeDir": ".", "srcDir": "." }
+}

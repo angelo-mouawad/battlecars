@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 const PROTECTED = ['/', '/play', '/manage', '/leaderboard'];
 
 async function isValidSession(cookieValue: string | undefined): Promise<boolean> {
-  const secret = process.env.NEXT_PUBLIC_APP_PASSWORD;
+  const secret = process.env.APP_PASSWORD;
   if (!secret || !cookieValue) return false;
   try {
     const encoder = new TextEncoder();
@@ -17,7 +17,10 @@ async function isValidSession(cookieValue: string | undefined): Promise<boolean>
     const expected = Array.from(new Uint8Array(signature))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
-    return expected === cookieValue;
+    if (expected.length !== cookieValue.length) return false;
+    let diff = 0;
+    for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ cookieValue.charCodeAt(i);
+    return diff === 0;
   } catch {
     return false;
   }
@@ -42,8 +45,8 @@ export async function proxy(request: NextRequest) {
 
   const isDev = process.env.NODE_ENV === 'development';
   const nonce = btoa(crypto.randomUUID());
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-  const wsUrl = process.env.NEXT_PUBLIC_WS_URL;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+  const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080/ws';
 
   const cspHeader = isDev ? `
       default-src 'self';

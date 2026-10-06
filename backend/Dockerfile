@@ -1,26 +1,14 @@
-# -------- Stage 1: Build with Maven --------
-FROM maven:3.9.9-amazoncorretto-21 AS build
+FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
-
-# Copy pom.xml first (cached layer — only re-runs if pom.xml changes)
 COPY pom.xml .
-RUN mvn dependency:go-offline -B
-
-# Copy source and build
+RUN mvn --batch-mode dependency:go-offline
 COPY src ./src
-RUN mvn clean package -DskipTests
+RUN mvn --batch-mode package -DskipTests
 
-# -------- Stage 2: Production runtime --------
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-
-# Fix OKD permissions — allow random UID to run
-RUN chgrp -R 0 /app && chmod -R g+rwx /app
-
-# Copy compiled JAR from build stage
 COPY --from=build /app/target/*.jar app.jar
-
+RUN chgrp -R 0 /app && chmod -R g+rwx /app
 EXPOSE 8080
-
 USER 1001
 CMD ["java", "-jar", "app.jar"]

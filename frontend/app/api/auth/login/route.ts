@@ -2,22 +2,21 @@ import { NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 
 export async function POST(request: Request) {
-  const { password } = await request.json();
-
-  const adminPassword = process.env.NEXT_PUBLIC_APP_PASSWORD;
+  const adminPassword = process.env.APP_PASSWORD;
   if (!adminPassword) {
-    return NextResponse.json({ error: 'Server not configured' }, { status: 500 });
+    return NextResponse.json({ error: 'APP_PASSWORD is not configured on the server' }, { status: 500 });
   }
 
-  // Constant-time comparison to prevent timing attacks
-  let passwordValid = false;
+  let password: unknown;
   try {
-    const a = Buffer.from(password ?? '');
-    const b = Buffer.from(adminPassword);
-    passwordValid = a.length === b.length && timingSafeEqual(a, b);
+    ({ password } = await request.json());
   } catch {
-    passwordValid = false;
+    return NextResponse.json({ error: 'Request body must be JSON' }, { status: 400 });
   }
+
+  const given = Buffer.from(typeof password === 'string' ? password : '');
+  const expected = Buffer.from(adminPassword);
+  const passwordValid = given.length === expected.length && timingSafeEqual(given, expected);
 
   if (!passwordValid) {
     return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
@@ -31,6 +30,7 @@ export async function POST(request: Request) {
     sameSite: 'strict',
     path: '/',
     secure: process.env.NODE_ENV === 'production',
+    maxAge: 60 * 60 * 12,
   });
   return response;
 }

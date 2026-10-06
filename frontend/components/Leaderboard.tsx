@@ -3,17 +3,18 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Player } from '@/types/types';
-import PlayerService from '@/services/PlayerService';
+import PlayerService, { errorText } from '@/services/PlayerService';
 
 export default function Leaderboard() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const router = useRouter();
 
   useEffect(() => {
     PlayerService.getAllPlayers()
       .then(data => setPlayers([...data].sort((a, b) => b.score - a.score)))
-      .catch(() => setPlayers([]))
+      .catch(err => { setPlayers([]); setLoadError(errorText(err, 'Could not load the leaderboard')); })
       .finally(() => setLoading(false));
   }, []);
 
@@ -28,6 +29,8 @@ export default function Leaderboard() {
         </div>
         {loading ? (
           <p className="text-gray-400 text-sm text-center py-6">Loading...</p>
+        ) : loadError ? (
+          <p className="text-red-400 text-sm text-center py-6">{loadError}</p>
         ) : (
           players.map((player, i) => (
             <div

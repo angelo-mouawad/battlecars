@@ -1,5 +1,6 @@
 package be.ucll.controller;
 
+import be.ucll.controller.dto.SensorReadingRequest;
 import be.ucll.model.SensorReading;
 import be.ucll.service.SensorService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,6 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -35,41 +37,58 @@ public class DataControllerTest {
     // -------- POST /api/data --------
 
     @Test
-    void postData_validReading_returns200() throws Exception {
-        SensorReading input = new SensorReading(1, "move", "{\"isMoving\":true,\"speed\":\"fast\"}");
-
+    void postData_validReading_returns201() throws Exception {
         SensorReading saved = new SensorReading(1, "move", "{\"isMoving\":true,\"speed\":\"fast\"}");
         saved.setTimestamp(LocalDateTime.of(2026, 5, 11, 10, 0, 0));
 
-        when(sensorService.save(any(SensorReading.class))).thenReturn(saved);
+        when(sensorService.save(any(SensorReadingRequest.class))).thenReturn(saved);
 
         mockMvc.perform(post("/api/data")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(input)))
-                .andExpect(status().isOk())
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "carId", 1, "event", "move", "data", Map.of("isMoving", true, "speed", "fast")))))
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.carId").value(1))
                 .andExpect(jsonPath("$.event").value("move"));
     }
 
     @Test
-    void postData_missingBody_returns200() throws Exception {
+    void postData_missingCarId_returns400() throws Exception {
         mockMvc.perform(post("/api/data")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
-                .andExpect(status().isOk());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("carId must not be null"));
+    }
+
+    @Test
+    void postData_unknownCar_returns400() throws Exception {
+        mockMvc.perform(post("/api/data")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"carId\": 7}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void postData_invalidJson_returns400() throws Exception {
+        mockMvc.perform(post("/api/data")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{not json"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Request body is missing or is not valid JSON"));
     }
 
     @Test
     void postData_hitEvent_savesCorrectly() throws Exception {
-        SensorReading input = new SensorReading(2, "hit", "{\"hit\":true,\"hitStrength\":\"heavy\"}");
         SensorReading saved = new SensorReading(2, "hit", "{\"hit\":true,\"hitStrength\":\"heavy\"}");
 
-        when(sensorService.save(any(SensorReading.class))).thenReturn(saved);
+        when(sensorService.save(any(SensorReadingRequest.class))).thenReturn(saved);
 
         mockMvc.perform(post("/api/data")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(input)))
-                .andExpect(status().isOk())
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "carId", 2, "data", Map.of("hit", true, "hitStrength", "heavy")))))
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.carId").value(2))
                 .andExpect(jsonPath("$.event").value("hit"));
     }
@@ -115,11 +134,12 @@ public class DataControllerTest {
     }
 
     @Test
-    void getLatest_noData_returnsNull() throws Exception {
+    void getLatest_noData_returns404() throws Exception {
         when(sensorService.getLatest()).thenReturn(null);
 
         mockMvc.perform(get("/api/data/latest"))
-                .andExpect(status().isOk());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("No sensor readings yet"));
     }
 
     // -------- GET /api/data/car/{carId} --------

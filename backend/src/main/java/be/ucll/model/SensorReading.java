@@ -28,7 +28,7 @@ public class SensorReading {
     @Column(name = "timestamp", nullable = false)
     private LocalDateTime timestamp;
 
-    // Which match this reading belongs to — null if received outside an active match
+    // Which match this reading belongs to, null if received outside an active match
     @Column(name = "match_id")
     private Long matchId;
 

@@ -8,7 +8,9 @@ import Field from '@/components/Field';
 import Footer from '@/components/Footer';
 import Scoreboard from '@/components/Scoreboard';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080/ws';
+const MAX_RECONNECT_DELAY_MS = 10000;
 const MAX_HEALTH = 50;
 
 const MOVE_STEP = 5;
@@ -33,6 +35,15 @@ interface CarPosition {
   y: number;
 }
 
+async function errorMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    const body = await res.json();
+    return typeof body?.error === 'string' ? body.error : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function clamp(val: number, min: number, max: number) {
   return Math.min(Math.max(val, min), max);
 }
@@ -52,6 +63,9 @@ export default function PlayPage() {
   const [winner, setWinner] = useState<{ name: string; carId: number } | null>(null);
   const [gameReady, setGameReady] = useState(false);
   const [commentary, setCommentary] = useState<string[]>([]);
+  const [socketOpen, setSocketOpen] = useState(false);
+  const [hubConnected, setHubConnected] = useState<boolean | null>(null);
+  const [matchError, setMatchError] = useState<string | null>(null);
 
   const [car1Pos, setCar1Pos] = useState<CarPosition>({ x: 25, y: 50 });
   const [car2Pos, setCar2Pos] = useState<CarPosition>({ x: 75, y: 50 });
@@ -62,6 +76,9 @@ export default function PlayPage() {
   const ws = useRef<WebSocket | null>(null);
   const matchIdRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const unmountedRef = useRef(false);
 
   const updatePosition = useCallback((cmd: string) => {
     const parts = cmd.split(':');
@@ -87,11 +104,20 @@ export default function PlayPage() {
     setTimeout(() => setter(false), 600);
   }, []);
 
-  const connectWebSocket = useCallback(() => {
-    const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'wss://team-01-en-backend-itip-en-01.apps.okd.ucll.cloud/ws';
-    ws.current = new WebSocket(WS_URL);
+  const connectWebSocket = useCallback(function connect() {
+    if (unmountedRef.current) return;
+    let socket: WebSocket;
+    try {
+      socket = new WebSocket(WS_URL);
+    } catch (err) {
+      console.error('Could not open WebSocket:', err);
+      return;
+    }
+    ws.current = socket;
 
     ws.current.onopen = () => {
+      reconnectAttemptsRef.current = 0;
+      setSocketOpen(true);
       if (matchIdRef.current) {
         ws.current?.send(`MATCH_START:${matchIdRef.current}`);
       }
@@ -101,7 +127,9 @@ export default function PlayPage() {
       try {
         const data = JSON.parse(event.data);
 
-        if (data.type === 'HIT_RESULT') {
+        if (data.type === 'HUB_STATUS') {
+          setHubConnected(Boolean(data.connected));
+        } else if (data.type === 'HIT_RESULT') {
           const hit = data as HitResult;
           if (hit.car1Health !== undefined) setHealth1(hit.car1Health);
           if (hit.car2Health !== undefined) setHealth2(hit.car2Health);
@@ -133,16 +161,23 @@ export default function PlayPage() {
             }
           })();
         } else if (data.carId !== undefined) {
-          // Raw ESP32 data — dispatch to the correct ControlsIndicator
+          // Raw ESP32 data, dispatch to the correct ControlsIndicator
           window.dispatchEvent(new CustomEvent(`car-status-${data.carId}`, { detail: data }));
         }
       } catch {
-        // Not JSON — ignore
+        // Not JSON, ignore
       }
     };
 
     ws.current.onerror = () => {};
-    ws.current.onclose = () => {};
+    ws.current.onclose = () => {
+      if (ws.current !== socket) return;
+      setSocketOpen(false);
+      if (unmountedRef.current) return;
+      const delay = Math.min(1000 * 2 ** reconnectAttemptsRef.current, MAX_RECONNECT_DELAY_MS);
+      reconnectAttemptsRef.current += 1;
+      reconnectTimerRef.current = setTimeout(connect, delay);
+    };
   }, [triggerHitFlash]);
 
   const sendCommand = useCallback((cmd: string) => {
@@ -157,11 +192,12 @@ export default function PlayPage() {
     const savedId = matchIdRef.current;
     matchIdRef.current = null;
     try {
-      await fetch(`${API_URL}/api/matches/${savedId}/end`, {
+      const res = await fetch(`${API_URL}/api/matches/${savedId}/end`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ winnerPlayerId }),
       });
+      if (!res.ok) throw new Error(await errorMessage(res, 'Could not end the match'));
       if (ws.current?.readyState === WebSocket.OPEN) {
         ws.current.send('MATCH_END');
       }
@@ -175,10 +211,12 @@ export default function PlayPage() {
   useEffect(() => {
     const handleUnload = () => {
       if (matchIdRef.current) {
-        navigator.sendBeacon(
-          `${API_URL}/api/matches/${matchIdRef.current}/end`,
-          JSON.stringify({ winnerPlayerId: player2Id })
-        );
+        fetch(`${API_URL}/api/matches/${matchIdRef.current}/end`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ winnerPlayerId: player2Id }),
+          keepalive: true,
+        }).catch(() => {});
       }
     };
     window.addEventListener('beforeunload', handleUnload);
@@ -191,6 +229,7 @@ export default function PlayPage() {
       return;
     }
 
+    unmountedRef.current = false;
     connectWebSocket();
 
     const initMatch = async () => {
@@ -206,33 +245,29 @@ export default function PlayPage() {
           }),
         });
 
-        if (!createRes.ok) throw new Error('Failed to create match');
+        if (!createRes.ok) throw new Error(await errorMessage(createRes, 'Could not create the match'));
         const created = await createRes.json();
         const newMatchId: number = created.matchId;
 
-        await fetch(`${API_URL}/api/matches/${newMatchId}/start`, { method: 'POST' });
+        const startRes = await fetch(`${API_URL}/api/matches/${newMatchId}/start`, { method: 'POST' });
+        if (!startRes.ok) throw new Error(await errorMessage(startRes, 'Could not start the match'));
 
         matchIdRef.current = newMatchId;
-
-        const sendStart = () => {
-          if (ws.current?.readyState === WebSocket.OPEN) {
-            ws.current.send(`MATCH_START:${newMatchId}`);
-            setGameReady(true);
-          } else {
-            setTimeout(sendStart, 100);
-          }
-        };
-        sendStart();
-
+        if (ws.current?.readyState === WebSocket.OPEN) {
+          ws.current.send(`MATCH_START:${newMatchId}`);
+        }
+        setGameReady(true);
       } catch (err) {
         console.error('Could not init match:', err);
-        setGameReady(true);
+        setMatchError(err instanceof Error && err.message ? err.message : 'Could not reach the server');
       }
     };
 
     initMatch();
 
     return () => {
+      unmountedRef.current = true;
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       if (matchIdRef.current) {
         fetch(`${API_URL}/api/matches/${matchIdRef.current}/end`, {
           method: 'POST',
@@ -246,6 +281,21 @@ export default function PlayPage() {
       ws.current?.close();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (matchError) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-[#0d1b2e] text-white gap-6 px-6 text-center">
+        <h1 className="text-2xl font-black uppercase tracking-widest text-red-400">Match could not start</h1>
+        <p className="text-gray-300 text-sm max-w-md">{matchError}</p>
+        <button
+          onClick={() => router.replace('/')}
+          className="px-8 py-3 rounded-md font-black uppercase tracking-widest text-sm bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+        >
+          Back to lobby
+        </button>
+      </div>
+    );
+  }
 
   if (winner) {
     const winnerIsPlayer1 = winner.carId === 1;
@@ -291,6 +341,12 @@ export default function PlayPage() {
         health1={health1}
         health2={health2}
       />
+
+      {gameReady && (!socketOpen || hubConnected === false) && (
+        <div className="bg-red-600/90 text-white text-center text-xs font-black uppercase tracking-widest py-2">
+          {!socketOpen ? 'Connection to the server lost, reconnecting...' : 'Cars are offline, check the hub'}
+        </div>
+      )}
 
       {!gameReady && (
         <div className="absolute inset-0 bg-[#0d1b2e]/80 flex items-center justify-center z-50">

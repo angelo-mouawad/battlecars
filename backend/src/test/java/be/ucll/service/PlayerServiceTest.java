@@ -25,7 +25,7 @@ public class PlayerServiceTest {
 
     @Mock private PlayerRepository repository;
 
-    // Use a real BCryptPasswordEncoder — we want to test actual hash behaviour
+    // Use a real BCryptPasswordEncoder, we want to test actual hash behaviour
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     private PlayerService playerService;

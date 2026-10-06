@@ -31,7 +31,7 @@ export default function CommentaryTicker({ lines }: CommentaryTickerProps) {
         </svg>
       </div>
 
-      {/* Commentary lines — newest at bottom, max 3 visible */}
+      {/* Commentary lines, newest at bottom, max 3 visible */}
       <div className="flex-1 overflow-hidden flex flex-col gap-0.5">
         {lines.slice(-3).map((line, i, arr) => {
           const isNewest = i === arr.length - 1;

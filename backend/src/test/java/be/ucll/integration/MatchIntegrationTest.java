@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -29,7 +28,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
-@ActiveProfiles("dev")
 @TestPropertySource(locations = "classpath:application-test.properties")
 @Transactional
 public class MatchIntegrationTest {
@@ -41,12 +39,12 @@ public class MatchIntegrationTest {
     private ObjectMapper objectMapper;
 
     // Player IDs seeded by DbInitializer on startup
-    // DbInitializer seeds 6 players — we use player 1 and 2
+    // DbInitializer seeds 6 players, we use player 1 and 2
     private static final long PLAYER_1_ID = 1L;
     private static final long PLAYER_2_ID = 2L;
 
     // -------------------------------------------------------------------------
-    // Helper — creates a match and returns its ID
+    // Helper, creates a match and returns its ID
     // -------------------------------------------------------------------------
     private long createMatch() throws Exception {
         Map<String, Object> body = Map.of(
@@ -67,7 +65,7 @@ public class MatchIntegrationTest {
     }
 
     // -------------------------------------------------------------------------
-    // POST /api/matches — create match
+    // POST /api/matches, create match
     // -------------------------------------------------------------------------
 
     @Test
@@ -90,7 +88,7 @@ public class MatchIntegrationTest {
     }
 
     @Test
-    void createMatch_invalidPlayerId_returns400() throws Exception {
+    void createMatch_invalidPlayerId_returns404() throws Exception {
         Map<String, Object> body = Map.of(
                 "player1Id", 99999L,   // does not exist
                 "car1Id", 1,
@@ -101,7 +99,7 @@ public class MatchIntegrationTest {
         mockMvc.perform(post("/api/matches")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -135,7 +133,7 @@ public class MatchIntegrationTest {
     }
 
     // -------------------------------------------------------------------------
-    // POST /api/matches/{id}/start — start match
+    // POST /api/matches/{id}/start, start match
     // -------------------------------------------------------------------------
 
     @Test
@@ -149,26 +147,26 @@ public class MatchIntegrationTest {
     }
 
     @Test
-    void startMatch_alreadyActive_returns400() throws Exception {
+    void startMatch_alreadyActive_returns409() throws Exception {
         long matchId = createMatch();
 
-        // Start it once — OK
+        // Start it once, OK
         mockMvc.perform(post("/api/matches/" + matchId + "/start"))
                 .andExpect(status().isOk());
 
-        // Try to start again — should fail
+        // Try to start again, should fail
         mockMvc.perform(post("/api/matches/" + matchId + "/start"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isConflict());
     }
 
     @Test
-    void startMatch_nonExistentMatch_returns400() throws Exception {
+    void startMatch_nonExistentMatch_returns404() throws Exception {
         mockMvc.perform(post("/api/matches/99999/start"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
     }
 
     // -------------------------------------------------------------------------
-    // GET /api/matches/active — get active match
+    // GET /api/matches/active, get active match
     // -------------------------------------------------------------------------
 
     @Test
@@ -184,13 +182,13 @@ public class MatchIntegrationTest {
 
     @Test
     void getActiveMatch_whenNoneActive_returns404() throws Exception {
-        // No match created — should return 404
+        // No match created, should return 404
         mockMvc.perform(get("/api/matches/active"))
                 .andExpect(status().isNotFound());
     }
 
     // -------------------------------------------------------------------------
-    // POST /api/matches/{id}/hit — process hit
+    // POST /api/matches/{id}/hit, process hit
     // -------------------------------------------------------------------------
 
     @Test
@@ -219,7 +217,7 @@ public class MatchIntegrationTest {
 
         Map<String, Object> hitBody = Map.of("carId", 1, "damage", 10);
 
-        // 4 hits — still alive (health = 10)
+        // 4 hits, still alive (health = 10)
         for (int i = 0; i < 4; i++) {
             mockMvc.perform(post("/api/matches/" + matchId + "/hit")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -227,7 +225,7 @@ public class MatchIntegrationTest {
                     .andExpect(jsonPath("$.matchOver").value(false));
         }
 
-        // 5th hit — match over (health = 0)
+        // 5th hit, match over (health = 0)
         mockMvc.perform(post("/api/matches/" + matchId + "/hit")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(hitBody)))
@@ -239,7 +237,7 @@ public class MatchIntegrationTest {
     }
 
     @Test
-    void processHit_finishedMatch_returns400() throws Exception {
+    void processHit_finishedMatch_returns409() throws Exception {
         long matchId = createMatch();
         mockMvc.perform(post("/api/matches/" + matchId + "/start"));
 
@@ -249,16 +247,16 @@ public class MatchIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(endBody)));
 
-        // Try to hit a finished match — should fail
+        // Try to hit a finished match, should fail
         Map<String, Object> hitBody = Map.of("carId", 1, "damage", 10);
         mockMvc.perform(post("/api/matches/" + matchId + "/hit")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(hitBody)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isConflict());
     }
 
     // -------------------------------------------------------------------------
-    // POST /api/matches/{id}/end — force end match
+    // POST /api/matches/{id}/end, force end match
     // -------------------------------------------------------------------------
 
     @Test
@@ -277,17 +275,17 @@ public class MatchIntegrationTest {
     }
 
     @Test
-    void endMatch_nonExistentMatch_returns400() throws Exception {
+    void endMatch_nonExistentMatch_returns404() throws Exception {
         Map<String, Object> endBody = Map.of("winnerPlayerId", PLAYER_1_ID);
 
         mockMvc.perform(post("/api/matches/99999/end")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(endBody)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
     }
 
     // -------------------------------------------------------------------------
-    // GET /api/matches/{id} — get match state
+    // GET /api/matches/{id}, get match state
     // -------------------------------------------------------------------------
 
     @Test
@@ -303,8 +301,8 @@ public class MatchIntegrationTest {
     }
 
     @Test
-    void getMatchState_nonExistentMatch_returns400() throws Exception {
+    void getMatchState_nonExistentMatch_returns404() throws Exception {
         mockMvc.perform(get("/api/matches/99999"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
     }
 }

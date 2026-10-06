@@ -1,0 +1,47 @@
+name: Firmware
+
+on:
+  push:
+    branches: [main]
+    paths: ["firmware/**", ".github/workflows/firmware.yml"]
+  pull_request:
+    paths: ["firmware/**", ".github/workflows/firmware.yml"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: car1
+            project: firmware/car
+          - target: car2
+            project: firmware/car
+          - target: esp32dev
+            project: firmware/hub
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio/.cache
+          key: platformio-${{ matrix.target }}-${{ hashFiles(format('{0}/platformio.ini', matrix.project)) }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Use example config for the hub
+        if: matrix.target == 'esp32dev'
+        run: cp firmware/hub/include/config.example.h firmware/hub/include/config.h
+
+      - name: Build
+        run: pio run -d ${{ matrix.project }} -e ${{ matrix.target }}

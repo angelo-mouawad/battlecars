@@ -162,15 +162,31 @@ public class SensorServiceTest {
     }
 
     @Test
-    void saveFromJson_missingCarId_doesNotCrash() throws Exception {
+    void saveFromJson_missingCarId_isRejectedWithoutSaving() {
         String json = "{\"event\":\"move\",\"isMoving\":true}";
 
-        SensorReading mockReading = new SensorReading(null, "move", "{\"isMoving\":true}");
-        when(repository.save(any(SensorReading.class))).thenReturn(mockReading);
+        assertThrows(IllegalArgumentException.class, () -> sensorService.saveFromJson(json));
+        verify(repository, never()).save(any(SensorReading.class));
+    }
 
-        SensorReading result = sensorService.saveFromJson(json);
+    @Test
+    void saveFromJson_invalidJson_isRejected() {
+        assertThrows(IllegalArgumentException.class, () -> sensorService.saveFromJson("{not json"));
+        assertThrows(IllegalArgumentException.class, () -> sensorService.saveFromJson("[1, 2]"));
+        assertThrows(IllegalArgumentException.class, () -> sensorService.saveFromJson(""));
+    }
 
-        assertThat(result.getEvent()).isEqualTo("move");
+    @Test
+    void saveFromJson_hubMessageWithoutEvent_derivesEventFromHitFlag() {
+        when(repository.save(any(SensorReading.class))).thenAnswer(i -> i.getArgument(0));
+
+        SensorReading hit = sensorService.saveFromJson("{\"carId\":1,\"hit\":true,\"orientation\":\"upright\"}");
+        SensorReading orientation = sensorService.saveFromJson("{\"carId\":2,\"hit\":false,\"orientation\":\"flipped\"}");
+
+        assertThat(hit.getEvent()).isEqualTo("hit");
+        assertThat(hit.getCarId()).isEqualTo(1);
+        assertThat(orientation.getEvent()).isEqualTo("orientation");
+        assertThat(orientation.getData()).contains("flipped").doesNotContain("carId");
     }
 
     // -------- getByCarId() --------

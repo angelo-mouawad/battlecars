@@ -1,64 +1,76 @@
 import { Player } from "../types/types";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
-const getAllPlayers = async (): Promise<Player[]> => {
-  const response = await fetch(BASE + "/api/players");
-  if (!response.ok) throw new Error("Failed to fetch players");
-  return response.json();
+const request = async (path: string, init: RequestInit = {}, fallback: string): Promise<Response> => {
+  let response: Response;
+  try {
+    response = await fetch(BASE + path, {
+      ...init,
+      headers: init.body ? { "Content-Type": "application/json", ...init.headers } : init.headers,
+    });
+  } catch {
+    throw new Error("Could not reach the server");
+  }
+
+  if (!response.ok) {
+    let message = fallback;
+    try {
+      const body = await response.json();
+      if (typeof body?.error === "string" && body.error) message = body.error;
+    } catch {
+      message = fallback;
+    }
+    throw new Error(message);
+  }
+  return response;
 };
 
-const getPlayerById = async (id: number): Promise<Player> => {
-  const response = await fetch(BASE + "/api/players/" + id);
-  if (!response.ok) throw new Error("Player not found");
-  return response.json();
-};
+const getAllPlayers = async (): Promise<Player[]> =>
+  (await request("/api/players", {}, "Failed to load players")).json();
 
-const createPlayer = async (name: string, password: string): Promise<Player> => {
-  const response = await fetch(BASE + "/api/players", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, password }),
-  });
-  if (!response.ok) throw new Error("Failed to create player");
-  return response.json();
-};
+const getPlayerById = async (id: number): Promise<Player> =>
+  (await request("/api/players/" + id, {}, "Player not found")).json();
 
-const changePassword = async (name: string, password: string): Promise<Player> => {
-  const response = await fetch(BASE + "/api/players/" + name + "/password", {
+const createPlayer = async (name: string, password: string): Promise<Player> =>
+  (await request("/api/players", { method: "POST", body: JSON.stringify({ name, password }) }, "Failed to create player")).json();
+
+const changePassword = async (name: string, password: string): Promise<Player> =>
+  (await request("/api/players/" + encodeURIComponent(name) + "/password", {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ password }),
-  });
-  if (!response.ok) throw new Error("Failed to change password");
-  return response.json();
-};
+  }, "Failed to change password")).json();
 
-const addPoints = async (name: string, points: number): Promise<Player> => {
-  const response = await fetch(BASE + "/api/players/" + name + "/score", {
+const addPoints = async (name: string, points: number): Promise<Player> =>
+  (await request("/api/players/" + encodeURIComponent(name) + "/score", {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ points }),
-  });
-  if (!response.ok) throw new Error("Failed to update score");
-  return response.json();
-};
+  }, "Failed to update score")).json();
 
 const deletePlayer = async (id: number): Promise<void> => {
-  const response = await fetch(BASE + "/api/players/" + id, { method: "DELETE" });
-  if (!response.ok) throw new Error("Failed to delete player");
+  await request("/api/players/" + id, { method: "DELETE" }, "Failed to delete player");
 };
 
 const login = async (name: string, password: string): Promise<boolean> => {
-  const response = await fetch(BASE + "/api/players/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, password }),
-  });
-  return response.ok;
+  let response: Response;
+  try {
+    response = await fetch(BASE + "/api/players/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, password }),
+    });
+  } catch {
+    throw new Error("Could not reach the server");
+  }
+  if (response.status === 401) return false;
+  if (!response.ok) throw new Error("Login failed, try again");
+  return true;
 };
 
-export default {
+export const errorText = (error: unknown, fallback: string): string =>
+  error instanceof Error && error.message ? error.message : fallback;
+
+const PlayerService = {
   getAllPlayers,
   getPlayerById,
   createPlayer,
@@ -67,3 +79,5 @@ export default {
   deletePlayer,
   login,
 };
+
+export default PlayerService;

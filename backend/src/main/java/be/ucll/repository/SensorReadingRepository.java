@@ -28,7 +28,7 @@ public interface SensorReadingRepository extends JpaRepository<SensorReading, Lo
     @Query(value = "SELECT * FROM sensor_readings WHERE car_id = :carId ORDER BY timestamp DESC LIMIT 1", nativeQuery = true)
     SensorReading findLatestByCarId(@Param("carId") Integer carId);
 
-    // Hit events only — clean jsonb query, no casting needed
+    // Hit events only, clean jsonb query, no casting needed
     @Query(value = "SELECT * FROM sensor_readings WHERE data->>'hit' = 'true'", nativeQuery = true)
     List<SensorReading> findAllHits();
 

@@ -206,7 +206,7 @@ public class GameServiceTest {
     }
 
     // =========================================================================
-    // processHit — damage logic
+    // processHit, damage logic
     // =========================================================================
 
     @Test
@@ -217,8 +217,8 @@ public class GameServiceTest {
 
         gameService.processHit(10L, 1, 10);
 
-        assertThat(mp1.getHealth()).isEqualTo(40); // car 1 hit — loses 10
-        assertThat(mp2.getHealth()).isEqualTo(50); // car 2 NOT hit — unchanged
+        assertThat(mp1.getHealth()).isEqualTo(40); // car 1 hit, loses 10
+        assertThat(mp2.getHealth()).isEqualTo(50); // car 2 NOT hit, unchanged
     }
 
     @Test
@@ -262,7 +262,7 @@ public class GameServiceTest {
     @Test
     void processHit_healthCannotGoBelowZero() {
         mp1.setHealth(5);
-        // mp2 stays at 50 — only car 1 gets hit
+        // mp2 stays at 50, only car 1 gets hit
 
         when(matchRepository.findById(10L)).thenReturn(Optional.of(activeMatch));
         when(matchPlayerRepository.findByMatchId(10L)).thenReturn(List.of(mp1, mp2));
@@ -277,7 +277,7 @@ public class GameServiceTest {
     }
 
     // =========================================================================
-    // processHit — match ending logic
+    // processHit, match ending logic
     // =========================================================================
 
     @Test
@@ -312,7 +312,7 @@ public class GameServiceTest {
 
         Map<String, Object> result = gameService.processHit(10L, 1, 10);
 
-        // mp2 (player2 / Mouad) should be the winner — they survived
+        // mp2 (player2 / Mouad) should be the winner, they survived
         assertThat(result.get("winnerName")).isEqualTo("Mouad");
         assertThat(result.get("winnerCarId")).isEqualTo(2);
     }

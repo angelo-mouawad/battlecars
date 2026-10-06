@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Player } from '@/types/types';
-import PlayerService from '@/services/PlayerService';
+import PlayerService, { errorText } from '@/services/PlayerService';
 
 interface SlotState {
   selectedId: string;
@@ -24,13 +24,14 @@ export default function Lobby() {
   const router = useRouter();
   const [playerList, setPlayerList] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [slot1, setSlot1] = useState<SlotState>(emptySlot());
   const [slot2, setSlot2] = useState<SlotState>(emptySlot());
 
   useEffect(() => {
     PlayerService.getAllPlayers()
       .then(setPlayerList)
-      .catch(() => setPlayerList([]))
+      .catch(err => { setPlayerList([]); setLoadError(errorText(err, 'Could not load players')); })
       .finally(() => setLoading(false));
   }, []);
 
@@ -49,8 +50,8 @@ export default function Lobby() {
         return;
       }
       updateSlot(n, { confirmed: true, error: '' });
-    } catch {
-      updateSlot(n, { error: 'Could not reach the server' });
+    } catch (err) {
+      updateSlot(n, { error: errorText(err, 'Could not reach the server') });
     }
   };
 
@@ -60,8 +61,8 @@ export default function Lobby() {
       const newPlayer = await PlayerService.createPlayer(slot.newName.trim(), slot.newPassword.trim());
       setPlayerList(prev => [...prev, newPlayer]);
       updateSlot(n, { creating: false, selectedId: String(newPlayer.id), confirmed: false, newName: '', newPassword: '', password: '', error: '' });
-    } catch {
-      updateSlot(n, { error: 'Failed to create player' });
+    } catch (err) {
+      updateSlot(n, { error: errorText(err, 'Failed to create player') });
     }
   };
 
@@ -83,7 +84,7 @@ export default function Lobby() {
               disabled={loading}
               className="bg-[#0d1b2e] border border-[#2a4060] rounded-md px-3 py-2 text-white text-sm outline-none focus:border-blue-500 disabled:opacity-50"
             >
-              <option value="">{loading ? 'Loading...' : 'Select player...'}</option>
+              <option value="">{loading ? 'Loading...' : loadError ? loadError : 'Select player...'}</option>
               {playerList.map(p => (
                 <option key={p.id} value={String(p.id)}>{p.name} ({p.score} pts)</option>
               ))}

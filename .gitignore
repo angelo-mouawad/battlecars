@@ -1,0 +1,6 @@
+.DS_Store
+.idea/
+.vscode/
+!firmware/*/.vscode/extensions.json
+*.log
+.env

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Player } from '@/types/types';
-import PlayerService from '@/services/PlayerService';
+import PlayerService, { errorText } from '@/services/PlayerService';
 
 type ModalMode = 'change-password' | 'delete' | null;
 
@@ -33,21 +33,18 @@ export default function ManagePage() {
   const [newName, setNewName] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [createError, setCreateError] = useState('');
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     PlayerService.getAllPlayers()
       .then(setPlayers)
-      .catch(() => setPlayers([]))
+      .catch(err => { setPlayers([]); setLoadError(errorText(err, 'Could not load players')); })
       .finally(() => setLoading(false));
   }, []);
 
   const handleChangePassword = async () => {
     const { player, oldPassword, newPassword, confirmPassword } = modal;
     if (!player) return;
-    if (!(await PlayerService.login(player.name, oldPassword))) {
-      setModal(prev => ({ ...prev, error: 'Old password is incorrect' }));
-      return;
-    }
     if (!newPassword.trim()) {
       setModal(prev => ({ ...prev, error: 'New password cannot be empty' }));
       return;
@@ -57,29 +54,32 @@ export default function ManagePage() {
       return;
     }
     try {
+      if (!(await PlayerService.login(player.name, oldPassword))) {
+        setModal(prev => ({ ...prev, error: 'Old password is incorrect' }));
+        return;
+      }
       await PlayerService.changePassword(player.name, newPassword.trim());
-      setPlayers(prev => prev.map(p => p.id === player.id ? { ...p, password: newPassword.trim() } : p));
       setSuccesses(prev => ({ ...prev, [player.id]: 'Password updated' }));
       setTimeout(() => setSuccesses(prev => ({ ...prev, [player.id]: '' })), 2000);
       setModal(emptyModal());
-    } catch {
-      setModal(prev => ({ ...prev, error: 'Failed to update password' }));
+    } catch (err) {
+      setModal(prev => ({ ...prev, error: errorText(err, 'Failed to update password') }));
     }
   };
 
   const handleDelete = async () => {
     const { player, deletePassword } = modal;
     if (!player) return;
-    if (!(await PlayerService.login(player.name, deletePassword))) {
-      setModal(prev => ({ ...prev, error: 'Wrong password' }));
-      return;
-    }
     try {
+      if (!(await PlayerService.login(player.name, deletePassword))) {
+        setModal(prev => ({ ...prev, error: 'Wrong password' }));
+        return;
+      }
       await PlayerService.deletePlayer(player.id);
       setPlayers(prev => prev.filter(p => p.id !== player.id));
       setModal(emptyModal());
-    } catch {
-      setModal(prev => ({ ...prev, error: 'Failed to delete player' }));
+    } catch (err) {
+      setModal(prev => ({ ...prev, error: errorText(err, 'Failed to delete player') }));
     }
   };
 
@@ -92,8 +92,8 @@ export default function ManagePage() {
       setNewPassword('');
       setCreateError('');
       setCreating(false);
-    } catch {
-      setCreateError('Failed to create player');
+    } catch (err) {
+      setCreateError(errorText(err, 'Failed to create player'));
     }
   };
 
@@ -135,6 +135,8 @@ export default function ManagePage() {
       <div className="bg-[#1a2e47] border border-[#2a4060] rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
         {loading ? (
           <p className="text-gray-400 text-sm text-center py-8">Loading...</p>
+        ) : loadError ? (
+          <p className="text-red-400 text-sm text-center py-8">{loadError}</p>
         ) : players.length === 0 ? (
           <p className="text-gray-400 text-sm text-center py-8">No players found.</p>
         ) : (
@@ -172,7 +174,7 @@ export default function ManagePage() {
           <div className="bg-[#1a2e47] border border-[#2a4060] rounded-2xl p-6 w-full max-w-sm flex flex-col gap-4">
             {modal.mode === 'change-password' && (
               <>
-                <h2 className="text-sm font-black uppercase tracking-widest">Change Password — {modal.player?.name}</h2>
+                <h2 className="text-sm font-black uppercase tracking-widest">Change Password, {modal.player?.name}</h2>
                 <input
                   type="password"
                   placeholder="Old password"
@@ -203,7 +205,7 @@ export default function ManagePage() {
             )}
             {modal.mode === 'delete' && (
               <>
-                <h2 className="text-sm font-black uppercase tracking-widest">Delete — {modal.player?.name}</h2>
+                <h2 className="text-sm font-black uppercase tracking-widest">Delete, {modal.player?.name}</h2>
                 <p className="text-xs text-gray-400">Enter the player&apos;s password to confirm deletion.</p>
                 <input
                   type="password"

@@ -1,5 +1,7 @@
 package be.ucll.service;
 
+import be.ucll.exception.NotFoundException;
+
 import be.ucll.model.Match;
 import be.ucll.model.Match.Status;
 import be.ucll.model.MatchPlayer;
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,26 +37,29 @@ public class GameService {
     @Transactional
     public Map<String, Object> createMatch(Long player1Id, Integer car1Id,
                                            Long player2Id, Integer car2Id) {
+        if (player1Id == null || player2Id == null || car1Id == null || car2Id == null)
+            throw new IllegalArgumentException("Both players and both cars are required");
+        if (!isValidCar(car1Id) || !isValidCar(car2Id))
+            throw new IllegalArgumentException("Car id must be 1 or 2");
+
         Player player1 = playerRepository.findById(player1Id)
-                .orElseThrow(() -> new IllegalArgumentException("Player not found: " + player1Id));
+                .orElseThrow(() -> new NotFoundException("Player not found: " + player1Id));
         Player player2 = playerRepository.findById(player2Id)
-                .orElseThrow(() -> new IllegalArgumentException("Player not found: " + player2Id));
+                .orElseThrow(() -> new NotFoundException("Player not found: " + player2Id));
 
         if (player1Id.equals(player2Id))
             throw new IllegalArgumentException("A player cannot play against themselves");
         if (car1Id.equals(car2Id))
             throw new IllegalArgumentException("Both players cannot use the same car");
 
-        // Auto-close any stuck ACTIVE or WAITING match before creating a new one
-        // This handles browser refreshes, dev mode double-mounts, and abandoned matches
         matchRepository.findFirstByStatus(Status.ACTIVE).ifPresent(m -> {
             m.setStatus(Status.FINISHED);
-            m.setEndedAt(java.time.LocalDateTime.now());
+            m.setEndedAt(LocalDateTime.now());
             matchRepository.save(m);
         });
         matchRepository.findFirstByStatus(Status.WAITING).ifPresent(m -> {
             m.setStatus(Status.FINISHED);
-            m.setEndedAt(java.time.LocalDateTime.now());
+            m.setEndedAt(LocalDateTime.now());
             matchRepository.save(m);
         });
 
@@ -91,16 +97,17 @@ public class GameService {
 
         if (match.getStatus() != Status.ACTIVE)
             throw new IllegalStateException("Match is not active, cannot process hit");
+        if (carId == null || !isValidCar(carId))
+            throw new IllegalArgumentException("Car id must be 1 or 2");
+        if (damage <= 0)
+            throw new IllegalArgumentException("Damage must be positive");
 
-        // Both players lose HP on every hit
-        // TODO: replace with directional logic when electronics team delivers it
-        //   front-front → both lose HP | side hit → only hit car loses HP
         List<MatchPlayer> allPlayers = matchPlayerRepository.findByMatchId(matchId);
 
         MatchPlayer hitCar = allPlayers.stream()
                 .filter(mp -> mp.getCarId().equals(carId))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Car not found in match: " + carId));
+                .orElseThrow(() -> new NotFoundException("Car not found in match: " + carId));
 
         hitCar.applyDamage(damage);
         matchPlayerRepository.save(hitCar);
@@ -143,6 +150,9 @@ public class GameService {
     @Transactional
     public Map<String, Object> endMatch(Long matchId, Long winnerPlayerId) {
         Match match = getMatchOrThrow(matchId);
+
+        if (match.getStatus() == Status.FINISHED)
+            throw new IllegalStateException("Match is already finished");
 
         MatchPlayer winnerMp = matchPlayerRepository.findByMatchIdAndPlayerId(matchId, winnerPlayerId)
                 .orElseThrow(() -> new IllegalStateException("Winner not found in this match"));
@@ -192,7 +202,7 @@ public class GameService {
     public List<Map<String, Object>> getAllFinishedMatches() {
         return matchRepository.findAll().stream()
                 .filter(m -> m.getStatus() == Status.FINISHED)
-                .sorted((a, b) -> b.getStartedAt().compareTo(a.getStartedAt()))
+                .sorted(Comparator.comparing(Match::getStartedAt, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::matchToSummary)
                 .collect(Collectors.toList());
     }
@@ -214,10 +224,13 @@ public class GameService {
 
     private Match getMatchOrThrow(Long matchId) {
         return matchRepository.findById(matchId)
-                .orElseThrow(() -> new IllegalArgumentException("Match not found: " + matchId));
+                .orElseThrow(() -> new NotFoundException("Match not found: " + matchId));
     }
 
-    // winnerMatchPlayer is null in a draw — no winner set, no points awarded
+    private static boolean isValidCar(Integer carId) {
+        return carId == 1 || carId == 2;
+    }
+
     private void finishMatch(Match match, MatchPlayer winnerMatchPlayer) {
         match.setStatus(Status.FINISHED);
         match.setEndedAt(LocalDateTime.now());

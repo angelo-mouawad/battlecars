@@ -1,7 +1,6 @@
 package be.ucll.controller;
 
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,8 +13,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import be.ucll.controller.dto.LoginRequest;
+import be.ucll.controller.dto.PasswordRequest;
+import be.ucll.controller.dto.PlayerRequest;
+import be.ucll.controller.dto.PointsRequest;
+import be.ucll.exception.NotFoundException;
 import be.ucll.model.Player;
 import be.ucll.service.PlayerService;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/players")
@@ -27,44 +32,44 @@ public class PlayerController {
         this.playerService = playerService;
     }
 
-    // GET /api/players
     @GetMapping
     public ResponseEntity<List<Player>> getAllPlayers() {
         return ResponseEntity.ok(playerService.getAll());
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<Player> getPlayer(@PathVariable Long id) {
+        return ResponseEntity.ok(playerService.getById(id));
+    }
+
     @PostMapping("/login")
-    public ResponseEntity<Void> login(@RequestBody Map<String, String> body) {
-        boolean ok = playerService.verifyPassword(body.get("name"), body.get("password"));
-        return ok ? ResponseEntity.ok().build()
-                  : ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    public ResponseEntity<Void> login(@RequestBody LoginRequest body) {
+        if (body.name() == null || body.name().isBlank() || body.password() == null || body.password().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        try {
+            boolean ok = playerService.verifyPassword(body.name(), body.password());
+            return ok ? ResponseEntity.ok().build() : ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        } catch (NotFoundException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
     }
 
     @PostMapping
-    public ResponseEntity<Player> createPlayer(@RequestBody Map<String, String> body) {
-        Player created = playerService.createPlayer(body.get("name"), body.get("password"));
-        return ResponseEntity.ok(created);
+    public ResponseEntity<Player> createPlayer(@Valid @RequestBody PlayerRequest body) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(playerService.createPlayer(body.name(), body.password()));
     }
 
-    // PATCH /api/players/{name}/password
-    // Body: { "password": "..." }
     @PatchMapping("/{name}/password")
-    public ResponseEntity<Player> changePassword(@PathVariable String name,
-                                                 @RequestBody Map<String, String> body) {
-        Player updated = playerService.changePassword(name, body.get("password"));
-        return ResponseEntity.ok(updated);
+    public ResponseEntity<Player> changePassword(@PathVariable String name, @Valid @RequestBody PasswordRequest body) {
+        return ResponseEntity.ok(playerService.changePassword(name, body.password()));
     }
 
-    // PATCH /api/players/{name}/score
-    // Body: { "points": 10 }
     @PatchMapping("/{name}/score")
-    public ResponseEntity<Player> addPoints(@PathVariable String name,
-                                            @RequestBody Map<String, Integer> body) {
-        Player updated = playerService.addPoints(name, body.get("points"));
-        return ResponseEntity.ok(updated);
+    public ResponseEntity<Player> addPoints(@PathVariable String name, @Valid @RequestBody PointsRequest body) {
+        return ResponseEntity.ok(playerService.addPoints(name, body.points()));
     }
 
-    // DELETE /api/players/{id}
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePlayer(@PathVariable Long id) {
         playerService.deletePlayer(id);

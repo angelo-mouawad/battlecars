@@ -47,7 +47,7 @@ export default function Field({
         Danger Zone
       </div>
 
-      {/* Car 1 — blue, WASD */}
+      {/* Car 1, blue, WASD */}
       <div
         className="absolute transition-all duration-100 pointer-events-none"
         style={{
@@ -69,7 +69,7 @@ export default function Field({
         </div>
       </div>
 
-      {/* Car 2 — orange, arrow keys */}
+      {/* Car 2, orange, arrow keys */}
       <div
         className="absolute transition-all duration-100 pointer-events-none"
         style={{
