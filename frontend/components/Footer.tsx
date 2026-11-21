@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
+import { clearApiToken } from '@/services/api';
 
 export default function Footer() {
   const router = useRouter();
@@ -8,6 +9,7 @@ export default function Footer() {
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
+    clearApiToken();
     router.push('/login');
   };
 

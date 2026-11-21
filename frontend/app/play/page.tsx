@@ -7,8 +7,8 @@ import CommentaryTicker from '@/components/CommentaryTicker';
 import Field from '@/components/Field';
 import Footer from '@/components/Footer';
 import Scoreboard from '@/components/Scoreboard';
+import { apiFetch, apiFetchNow, getApiToken } from '@/services/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080/ws';
 const MAX_RECONNECT_DELAY_MS = 10000;
 const MAX_HEALTH = 50;
@@ -106,78 +106,92 @@ export default function PlayPage() {
 
   const connectWebSocket = useCallback(function connect() {
     if (unmountedRef.current) return;
-    let socket: WebSocket;
-    try {
-      socket = new WebSocket(WS_URL);
-    } catch (err) {
-      console.error('Could not open WebSocket:', err);
-      return;
-    }
-    ws.current = socket;
 
-    ws.current.onopen = () => {
-      reconnectAttemptsRef.current = 0;
-      setSocketOpen(true);
-      if (matchIdRef.current) {
-        ws.current?.send(`MATCH_START:${matchIdRef.current}`);
-      }
-    };
-
-    ws.current.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-
-        if (data.type === 'HUB_STATUS') {
-          setHubConnected(Boolean(data.connected));
-        } else if (data.type === 'HIT_RESULT') {
-          const hit = data as HitResult;
-          if (hit.car1Health !== undefined) setHealth1(hit.car1Health);
-          if (hit.car2Health !== undefined) setHealth2(hit.car2Health);
-          if (hit.hitCarId) triggerHitFlash(hit.hitCarId);
-          if (hit.matchOver && hit.winnerName && hit.winnerCarId !== undefined) {
-            matchIdRef.current = null;
-            setWinner({ name: hit.winnerName, carId: hit.winnerCarId });
-          }
-        } else if (data.type === 'COMMENTARY') {
-          setCommentary(prev => [...prev, data.text]);
-        } else if (data.type === 'COMMENTARY_AUDIO') {
-          (async () => {
-            try {
-              if (!audioContextRef.current) {
-                audioContextRef.current = new AudioContext();
-              }
-              const audioContext = audioContextRef.current;
-              if (audioContext.state === 'suspended') {
-                await audioContext.resume();
-              }
-              const audioBytes = Uint8Array.from(atob(data.audio), c => c.charCodeAt(0));
-              const audioBuffer = await audioContext.decodeAudioData(audioBytes.buffer);
-              const source = audioContext.createBufferSource();
-              source.buffer = audioBuffer;
-              source.connect(audioContext.destination);
-              source.start(0);
-            } catch (e) {
-              console.warn('Could not play commentary audio:', e);
-            }
-          })();
-        } else if (data.carId !== undefined) {
-          // Raw ESP32 data, dispatch to the correct ControlsIndicator
-          window.dispatchEvent(new CustomEvent(`car-status-${data.carId}`, { detail: data }));
-        }
-      } catch {
-        // Not JSON, ignore
-      }
-    };
-
-    ws.current.onerror = () => {};
-    ws.current.onclose = () => {
-      if (ws.current !== socket) return;
-      setSocketOpen(false);
+    const scheduleReconnect = () => {
       if (unmountedRef.current) return;
       const delay = Math.min(1000 * 2 ** reconnectAttemptsRef.current, MAX_RECONNECT_DELAY_MS);
       reconnectAttemptsRef.current += 1;
       reconnectTimerRef.current = setTimeout(connect, delay);
     };
+
+    getApiToken().then(token => {
+      // Skip if unmounted meanwhile, or if another connect already opened a socket.
+      if (unmountedRef.current) return;
+      if (ws.current && ws.current.readyState <= WebSocket.OPEN) return;
+      let socket: WebSocket;
+      try {
+        socket = new WebSocket(`${WS_URL}?token=${encodeURIComponent(token)}`);
+      } catch (err) {
+        console.error('Could not open WebSocket:', err);
+        scheduleReconnect();
+        return;
+      }
+      ws.current = socket;
+
+      ws.current.onopen = () => {
+        reconnectAttemptsRef.current = 0;
+        setSocketOpen(true);
+        if (matchIdRef.current) {
+          ws.current?.send(`MATCH_START:${matchIdRef.current}`);
+        }
+      };
+
+      ws.current.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+
+          if (data.type === 'HUB_STATUS') {
+            setHubConnected(Boolean(data.connected));
+          } else if (data.type === 'HIT_RESULT') {
+            const hit = data as HitResult;
+            if (hit.car1Health !== undefined) setHealth1(hit.car1Health);
+            if (hit.car2Health !== undefined) setHealth2(hit.car2Health);
+            if (hit.hitCarId) triggerHitFlash(hit.hitCarId);
+            if (hit.matchOver && hit.winnerName && hit.winnerCarId !== undefined) {
+              matchIdRef.current = null;
+              setWinner({ name: hit.winnerName, carId: hit.winnerCarId });
+            }
+          } else if (data.type === 'COMMENTARY') {
+            setCommentary(prev => [...prev, data.text]);
+          } else if (data.type === 'COMMENTARY_AUDIO') {
+            (async () => {
+              try {
+                if (!audioContextRef.current) {
+                  audioContextRef.current = new AudioContext();
+                }
+                const audioContext = audioContextRef.current;
+                if (audioContext.state === 'suspended') {
+                  await audioContext.resume();
+                }
+                const audioBytes = Uint8Array.from(atob(data.audio), c => c.charCodeAt(0));
+                const audioBuffer = await audioContext.decodeAudioData(audioBytes.buffer);
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioContext.destination);
+                source.start(0);
+              } catch (e) {
+                console.warn('Could not play commentary audio:', e);
+              }
+            })();
+          } else if (data.carId !== undefined) {
+            // Raw ESP32 data, dispatch to the correct ControlsIndicator
+            window.dispatchEvent(new CustomEvent(`car-status-${data.carId}`, { detail: data }));
+          }
+        } catch {
+          // Not JSON, ignore
+        }
+      };
+
+      ws.current.onerror = () => {};
+      ws.current.onclose = () => {
+        if (ws.current !== socket) return;
+        setSocketOpen(false);
+        scheduleReconnect();
+      };
+    }).catch(err => {
+      console.error('Could not get a token for the WebSocket:', err);
+      scheduleReconnect();
+    });
   }, [triggerHitFlash]);
 
   const sendCommand = useCallback((cmd: string) => {
@@ -192,9 +206,8 @@ export default function PlayPage() {
     const savedId = matchIdRef.current;
     matchIdRef.current = null;
     try {
-      const res = await fetch(`${API_URL}/api/matches/${savedId}/end`, {
+      const res = await apiFetch(`/api/matches/${savedId}/end`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ winnerPlayerId }),
       });
       if (!res.ok) throw new Error(await errorMessage(res, 'Could not end the match'));
@@ -211,9 +224,8 @@ export default function PlayPage() {
   useEffect(() => {
     const handleUnload = () => {
       if (matchIdRef.current) {
-        fetch(`${API_URL}/api/matches/${matchIdRef.current}/end`, {
+        apiFetchNow(`/api/matches/${matchIdRef.current}/end`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ winnerPlayerId: player2Id }),
           keepalive: true,
         }).catch(() => {});
@@ -234,9 +246,8 @@ export default function PlayPage() {
 
     const initMatch = async () => {
       try {
-        const createRes = await fetch(`${API_URL}/api/matches`, {
+        const createRes = await apiFetch('/api/matches', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             player1Id: player1Id,
             car1Id: 1,
@@ -249,7 +260,7 @@ export default function PlayPage() {
         const created = await createRes.json();
         const newMatchId: number = created.matchId;
 
-        const startRes = await fetch(`${API_URL}/api/matches/${newMatchId}/start`, { method: 'POST' });
+        const startRes = await apiFetch(`/api/matches/${newMatchId}/start`, { method: 'POST' });
         if (!startRes.ok) throw new Error(await errorMessage(startRes, 'Could not start the match'));
 
         matchIdRef.current = newMatchId;
@@ -269,9 +280,8 @@ export default function PlayPage() {
       unmountedRef.current = true;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       if (matchIdRef.current) {
-        fetch(`${API_URL}/api/matches/${matchIdRef.current}/end`, {
+        apiFetch(`/api/matches/${matchIdRef.current}/end`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ winnerPlayerId: player2Id }),
         }).catch(() => {});
       }

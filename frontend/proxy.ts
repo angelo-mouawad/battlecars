@@ -1,30 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { isValidSession } from '@/lib/auth';
 
 const PROTECTED = ['/', '/play', '/manage', '/leaderboard'];
-
-async function isValidSession(cookieValue: string | undefined): Promise<boolean> {
-  const secret = process.env.APP_PASSWORD;
-  if (!secret || !cookieValue) return false;
-  try {
-    const encoder = new TextEncoder();
-    const key = await crypto.subtle.importKey(
-      'raw', encoder.encode(secret),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false, ['sign']
-    );
-    const signature = await crypto.subtle.sign('HMAC', key, encoder.encode('admin_session'));
-    const expected = Array.from(new Uint8Array(signature))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-    if (expected.length !== cookieValue.length) return false;
-    let diff = 0;
-    for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ cookieValue.charCodeAt(i);
-    return diff === 0;
-  } catch {
-    return false;
-  }
-}
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

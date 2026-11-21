@@ -1,16 +1,13 @@
 import { Player } from "../types/types";
-
-const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+import { apiFetch } from "./api";
 
 const request = async (path: string, init: RequestInit = {}, fallback: string): Promise<Response> => {
   let response: Response;
   try {
-    response = await fetch(BASE + path, {
-      ...init,
-      headers: init.body ? { "Content-Type": "application/json", ...init.headers } : init.headers,
-    });
-  } catch {
-    throw new Error("Could not reach the server");
+    response = await apiFetch(path, init);
+  } catch (error) {
+    // fetch rejects with a TypeError when the backend is unreachable; token errors keep their own message.
+    throw error instanceof TypeError ? new Error("Could not reach the server") : error;
   }
 
   if (!response.ok) {
@@ -54,13 +51,13 @@ const deletePlayer = async (id: number): Promise<void> => {
 const login = async (name: string, password: string): Promise<boolean> => {
   let response: Response;
   try {
-    response = await fetch(BASE + "/api/players/login", {
+    response = await apiFetch("/api/players/login", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, password }),
     });
-  } catch {
-    throw new Error("Could not reach the server");
+  } catch (error) {
+    // fetch rejects with a TypeError when the backend is unreachable; token errors keep their own message.
+    throw error instanceof TypeError ? new Error("Could not reach the server") : error;
   }
   if (response.status === 401) return false;
   if (!response.ok) throw new Error("Login failed, try again");

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createHmac, timingSafeEqual } from 'crypto';
+import { timingSafeEqual } from 'crypto';
+import { sessionToken } from '@/lib/auth';
 
 export async function POST(request: Request) {
   const adminPassword = process.env.APP_PASSWORD;
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
   }
 
-  const token = createHmac('sha256', adminPassword).update('admin_session').digest('hex');
+  const token = await sessionToken(adminPassword);
 
   const response = NextResponse.json({ ok: true });
   response.cookies.set('session', token, {
