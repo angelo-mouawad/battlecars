@@ -38,10 +38,13 @@ export async function proxy(request: NextRequest) {
       frame-ancestors 'none';
       connect-src 'self' http://localhost:8080 ws://localhost:3000 ws://localhost:8080;
     `.replace(/\s{2,}/g, ' ').trim()
+  // React renders style={{...}} as inline style attributes, which a nonce cannot cover,
+  // and browsers ignore 'unsafe-inline' when a nonce is listed. So styles allow inline,
+  // while scripts keep the strict nonce rule.
   : `
       default-src 'self';
       script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
-      style-src 'self' 'nonce-${nonce}';
+      style-src 'self' 'unsafe-inline';
       img-src 'self' blob: data:;
       font-src 'self';
       object-src 'none';
