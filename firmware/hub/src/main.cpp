@@ -15,6 +15,10 @@
 #error "Missing include/config.h. Copy include/config.example.h to include/config.h and fill it in."
 #endif
 
+#ifndef HUB_TOKEN
+#error "include/config.h has no HUB_TOKEN. Add it, see include/config.example.h."
+#endif
+
 #ifndef WS_USE_SSL
 #define WS_USE_SSL 1
 #endif
@@ -276,6 +280,8 @@ void setup() {
 #else
   webSocket.begin(WS_HOST, WS_PORT, WS_PATH);
 #endif
+  // After begin(), which resets the extra headers. The backend refuses a hub without this token.
+  webSocket.setExtraHeaders("Authorization: Bearer " HUB_TOKEN);
   webSocket.onEvent(webSocketEvent);
   webSocket.setReconnectInterval(3000);
   webSocket.enableHeartbeat(15000, 3000, 2);

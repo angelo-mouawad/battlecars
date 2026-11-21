@@ -7,3 +7,6 @@
 #define WS_PORT    8080
 #define WS_PATH    "/ws?client=esp"
 #define WS_USE_SSL 0
+
+// Must match HUB_TOKEN on the backend, otherwise the hub is refused.
+#define HUB_TOKEN  "paste-the-backend-HUB_TOKEN-here"

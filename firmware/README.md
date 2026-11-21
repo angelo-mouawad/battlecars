@@ -12,7 +12,7 @@
 Install [PlatformIO](https://platformio.org/install/cli), then:
 
 ```bash
-cp hub/include/config.example.h hub/include/config.h   # fill in WiFi and backend address
+cp hub/include/config.example.h hub/include/config.h   # fill in WiFi, backend address and HUB_TOKEN
 pio run -d hub -t upload
 pio run -d car -e car1 -t upload
 pio run -d car -e car2 -t upload
