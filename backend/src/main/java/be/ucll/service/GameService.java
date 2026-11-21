@@ -183,7 +183,6 @@ public class GameService {
             ps.put("playerName", mp.getPlayer().getName());
             ps.put("carId", mp.getCarId());
             ps.put("health", mp.getHealth());
-            ps.put("score", mp.getScore());
             return ps;
         }).collect(Collectors.toList());
 

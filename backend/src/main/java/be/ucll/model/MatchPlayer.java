@@ -26,9 +26,6 @@ public class MatchPlayer {
     @Column(name = "health", nullable = false)
     private Integer health = MAX_HEALTH;
 
-    @Column(name = "score")
-    private Integer score = 0;
-
     public MatchPlayer() {}
 
     public MatchPlayer(Match match, Player player, Integer carId) {
@@ -36,7 +33,6 @@ public class MatchPlayer {
         this.player = player;
         this.carId = carId;
         this.health = MAX_HEALTH;
-        this.score = 0;
     }
 
     public boolean isAlive() {
@@ -60,7 +56,4 @@ public class MatchPlayer {
 
     public Integer getHealth() { return health; }
     public void setHealth(Integer health) { this.health = health; }
-
-    public Integer getScore() { return score; }
-    public void setScore(Integer score) { this.score = score; }
 }
