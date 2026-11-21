@@ -12,8 +12,8 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.net.URI;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -28,6 +28,8 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
 
+import be.ucll.security.WebSocketAuthInterceptor;
+import be.ucll.security.WebSocketAuthInterceptor.Client;
 import be.ucll.service.CommentaryService;
 import be.ucll.service.GameService;
 import be.ucll.service.SensorService;
@@ -50,18 +52,19 @@ class BattleCarsWebSocketHandlerTest {
     @BeforeEach
     void setUp() throws Exception {
         handler = new BattleCarsWebSocketHandler(sensorService, gameService, commentaryService, voiceService);
-        hub = session("hub", "ws://localhost/ws?client=esp", hubInbox);
-        browser = session("browser", "ws://localhost/ws", browserInbox);
+        hub = session("hub", Client.HUB, hubInbox);
+        browser = session("browser", Client.BROWSER, browserInbox);
         handler.afterConnectionEstablished(browser);
         handler.afterConnectionEstablished(hub);
         hubInbox.clear();
         browserInbox.clear();
     }
 
-    private static WebSocketSession session(String id, String uri, List<String> inbox) throws Exception {
+    private static WebSocketSession session(String id, Client client, List<String> inbox) throws Exception {
         WebSocketSession session = mock(WebSocketSession.class);
         lenient().when(session.getId()).thenReturn(id);
-        lenient().when(session.getUri()).thenReturn(URI.create(uri));
+        lenient().when(session.getAttributes())
+                .thenReturn(new HashMap<>(Map.of(WebSocketAuthInterceptor.CLIENT_ATTRIBUTE, client)));
         lenient().when(session.isOpen()).thenReturn(true);
         lenient().doAnswer(call -> {
             WebSocketMessage<?> message = call.getArgument(0);
@@ -82,7 +85,7 @@ class BattleCarsWebSocketHandlerTest {
     @Test
     void browserLearnsWhetherTheHubIsConnected() throws Exception {
         List<String> inbox = new ArrayList<>();
-        handler.afterConnectionEstablished(session("late", "ws://localhost/ws", inbox));
+        handler.afterConnectionEstablished(session("late", Client.BROWSER, inbox));
         assertThat(inbox).containsExactly("{\"type\":\"HUB_STATUS\",\"connected\":true}");
 
         handler.afterConnectionClosed(hub, CloseStatus.NORMAL);

@@ -1,6 +1,5 @@
 package be.ucll.websocket;
 
-import java.net.URI;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +22,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import be.ucll.security.WebSocketAuthInterceptor;
 import be.ucll.service.CommentaryService;
 import be.ucll.service.GameService;
 import be.ucll.service.SensorService;
@@ -35,7 +35,6 @@ public class BattleCarsWebSocketHandler extends TextWebSocketHandler {
     private static final Logger log = LoggerFactory.getLogger(BattleCarsWebSocketHandler.class);
 
     static final Pattern CAR_COMMAND = Pattern.compile("^[12]:(UP|DOWN|LEFT|RIGHT|STOP|HAMMER)$");
-    private static final String ESP_QUERY = "client=esp";
     private static final int HIT_DAMAGE = 10;
     private static final int SEND_TIME_LIMIT_MS = 5_000;
     private static final int SEND_BUFFER_LIMIT_BYTES = 512 * 1024;
@@ -253,9 +252,10 @@ public class BattleCarsWebSocketHandler extends TextWebSocketHandler {
         return value instanceof Number number ? number.intValue() : 50;
     }
 
+    /** Set by {@link WebSocketAuthInterceptor} only after the hub has presented HUB_TOKEN. */
     private static boolean isEsp(WebSocketSession session) {
-        URI uri = session.getUri();
-        return uri != null && ESP_QUERY.equals(uri.getQuery());
+        return session.getAttributes().get(WebSocketAuthInterceptor.CLIENT_ATTRIBUTE)
+                == WebSocketAuthInterceptor.Client.HUB;
     }
 
     private String hubStatusMessage() {
