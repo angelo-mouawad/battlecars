@@ -110,13 +110,22 @@ The cars share one 433 MHz band for sending and receiving, and a transmission bl
 You need Docker for the server side, and PlatformIO for the hardware.
 
 ```bash
-cp .env.example .env          # set APP_PASSWORD, the AI keys are optional
+cp .env.example .env          # fill in the values below, the AI keys are optional
 docker compose up --build
 ```
 
+| Variable | What it is |
+| --- | --- |
+| `APP_PASSWORD` | The password for the site |
+| `API_SECRET` | Shared by the backend and the frontend server to sign API tokens, for example `openssl rand -hex 32` |
+| `HUB_TOKEN` | Shared by the backend and the hub, generated the same way |
+| `SEED_DEMO_PLAYERS` | `true` adds six demo players to an empty database |
+
+The backend refuses to start without `API_SECRET` and `HUB_TOKEN`.
+
 The game runs on http://localhost:3000 (log in with `APP_PASSWORD`) and the backend on http://localhost:8080. Without the AI keys the game works the same, just without commentary.
 
-To flash the hub, copy the example config and fill in your WiFi and the address of the machine running the backend:
+To flash the hub, copy the example config and fill in your WiFi, the address of the machine running the backend, and the same `HUB_TOKEN`:
 
 ```bash
 cp firmware/hub/include/config.example.h firmware/hub/include/config.h
@@ -125,13 +134,19 @@ pio run -d firmware/hub -t upload
 
 Set `WS_USE_SSL` to `1` when the backend is behind HTTPS. Then flash both cars with the commands above.
 
-The demo database comes with six example players, for example `Angelo` with the password `angelo123`. The full list is in [`DbInitializer.java`](backend/src/main/java/be/ucll/repository/DbInitializer.java).
+With `SEED_DEMO_PLAYERS=true` the database starts with six example players, for example `Angelo` with the password `angelo123`. The full list is in [`DbInitializer.java`](backend/src/main/java/be/ucll/repository/DbInitializer.java). Those passwords are public, so leave it off anywhere the game is reachable from the internet.
+
+## Security
+
+- The site is behind `APP_PASSWORD`, which sets a signed, httpOnly session cookie.
+- The backend accepts no anonymous calls. A logged-in browser gets a token from the frontend server that lasts 15 minutes. That token is signed with `API_SECRET`, and the browser sends it with every API call and when opening the WebSocket. Only `/status` and the health check are open.
+- The hub proves who it is with `HUB_TOKEN` in an `Authorization` header. Without it, the backend refuses the connection, so nothing else can pose as the hub and inject hits.
 
 ## Tests and CI
 
 GitHub Actions runs three pipelines, each only when its part of the repo changes:
 
-- **Backend:** unit tests for the game rules, players, sensor parsing and the WebSocket bridge, plus integration tests for the whole match lifecycle against a real PostgreSQL.
+- **Backend:** unit tests for the game rules, players, sensor parsing, API tokens and the WebSocket bridge, plus integration tests for the whole match lifecycle and the API security against a real PostgreSQL.
 - **Frontend:** lint, type check and production build.
 - **Firmware:** builds car 1, car 2 and the hub with PlatformIO, so a change that breaks the hardware code is caught before it reaches a car.
 
@@ -152,7 +167,7 @@ docker-compose.yml
 
 - The cars are wired on breadboards with unsoldered radio antennas, so vibration can loosen wires and range is short. A PCB would be the next step.
 - Hit detection uses one threshold for the total jolt, so it cannot tell a hit from a hard crash into a wall, and it does not know which car was the attacker.
-- The site is protected by one shared password, and the backend trusts the network it runs on. The hub identifies itself with a query parameter instead of a secret. This was fine for a demo on the school network but would need real authentication anywhere else.
+- Everyone shares one site password, so there are no individual accounts. That is enough to keep a demo private, but a public version would need real user accounts.
 
 ## Team
 

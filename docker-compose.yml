@@ -27,6 +27,9 @@ services:
       DATABASE_USER: battlecars
       DATABASE_PASSWORD: battlecars
       CORS_ALLOWED_ORIGINS: http://localhost:3000
+      API_SECRET: ${API_SECRET:?Set API_SECRET in .env}
+      HUB_TOKEN: ${HUB_TOKEN:?Set HUB_TOKEN in .env}
+      SEED_DEMO_PLAYERS: ${SEED_DEMO_PLAYERS:-false}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
       ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID:-}
@@ -43,7 +46,8 @@ services:
     depends_on:
       - backend
     environment:
-      APP_PASSWORD: ${APP_PASSWORD:-battlecars}
+      APP_PASSWORD: ${APP_PASSWORD:?Set APP_PASSWORD in .env}
+      API_SECRET: ${API_SECRET:?Set API_SECRET in .env}
     ports:
       - "3000:3000"
 
